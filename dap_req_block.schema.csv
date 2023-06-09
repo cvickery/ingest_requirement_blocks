@@ -1,0 +1,32 @@
+Field,Example,Used?,Notes
+REQUIREMENT_ID,“RA001234”,Yes,The REQUIREMENT_ID:INSTITUTION pair uniquely identify a row
+BLOCK_TYPE,“MAJOR”,Yes,Basic metadata
+BLOCK_VALUE,“CSCI-BA”,Yes,Basic metadata
+TITLE,“Minor in Philosophy”,Yes,Basic metadata
+PERIOD_START,“2019-2020U”,Yes,Basic metadata
+PERIOD_STOP,“99999999”,Yes,Basic metadata
+SCHOOL,“U”,No,
+DEGREE,“BA”,No,Redundant to last part of BLOCK_VALUE
+COLLEGE,“GR”,No,
+MAJOR1,“CSCI-BA”,Yes,Sometimes helps tie concentrations to majors
+MAJOR2,“CHILDED-BA”,Not Currently,
+CONCENTRATION,“SUSTSOCY”,Not Currently,
+MINOR,“ANTHRO-MIN”,Not Currently,
+LIBERAL_LEARNING,“FRENLT20”,Not Currently,
+SPECIALIZATION,,No,
+PROGRAM,,No,
+STUDENT_ID,,No,
+PARSE_STATUS,,No,
+PARSE_DATE,“2023-01-18”,Yes,We use this to check if a block has changed
+PARSE_WHO,,No,
+PARSE_WHAT,,No,
+LOCK_VERSION,,No,
+REQUIREMENT_TEXT,[Scribe Block text],Yes,What we parse
+CREATE_DATE,,No,
+CREATE_WHO,,No,
+CREATE_WHAT,,No,
+MODIFY_DATE,,No,
+MODIFY_WHO,,No,
+MODIFY_WHAT,,No,
+INSTITUTION,“QNS01”,Yes,Unique code for each CUNY college; added by CUNY Central
+IRDW_LOAD_DATE,“2023-01-18”,Yes,Used for integrity checking during import
