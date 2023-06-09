@@ -179,7 +179,7 @@ hostname = os.uname().nodename
 is_cuny = hostname.lower().endswith('cuny.edu')
 
 home_dir = Path.home()
-archives_dir = Path(home_dir, 'Projects/cuny_programs/dgw_requirement_blocks/archives')
+archives_dir = Path(home_dir, 'Projects/ingest_requirement_blocks/archives')
 
 print(f'{Path(sys.argv[0]).name} on {hostname} at '
       f'{datetime.datetime.now().isoformat()[0:19].replace("T", " ")}')
@@ -191,7 +191,7 @@ if is_cuny:
   if not args.skip_downloads:
     lftpwd = Path(home_dir, '.lftpwd').open().readline().strip()
     commands = '\n'.join(['cd ODI-Queens/DegreeWorks',
-                          'mget -O /Users/vickery/Projects/cuny_programs/dgw_requirement_blocks/'
+                          'mget -O /Users/vickery/Projects/ingest_requirement_blocks/'
                           'downloads *dap_req_block* *active_requirements*'])
     tumble_result = run(['/usr/local/bin/lftp',
                          '--user', 'CVickery',
