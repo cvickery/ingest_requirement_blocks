@@ -550,7 +550,7 @@ if __name__ == '__main__':
                    {'name': 'Christopher Vickery', 'email': 'Christopher.Vickery@qc.cuny.edu'},
                    ]
       else:
-        subject = f'Course Mapper files report from {hostname}'
+        subject = f'Requirement block ingestion report from {hostname}'
         to_list = [{'name': 'Christopher Vickery', 'email': 'Christopher.Vickery@qc.cuny.edu'}]
       sender = {'name': 'T-Rex Labs', 'email': 'christopher.vickery@qc.cuny.edu'}
       send_message(to_list, sender, subject, html_msg)
