@@ -476,10 +476,10 @@ if __name__ == '__main__':
        mk_active_req_blocks drops the dgw.plans and dgw.subplans tables, but the requirements
        mapper rebuilds them automatically.
     """
-    print('Build active_req_blocks')
-    result = run(['./mk_active_req_blocks.py'], stdout=sys.stdout, stderr=sys.stdout)
+    print('Populate requirement_blocks.term_info')
+    result = run(['./mk_term_info.py'], stdout=sys.stdout, stderr=sys.stdout)
     if result.returncode != 0:
-      print('\nBuild active_req_blocks FAILED! Not parsing active blocks; not running mapper.')
+      print('\nmk_term_info FAILED! Not parsing active blocks; not running mapper.')
     else:
       # Select active blocks from the potential_parse_list, and parse them
       print('\nCache active block keys')
@@ -487,12 +487,13 @@ if __name__ == '__main__':
         with conn.cursor(row_factory=namedtuple_row) as cursor:
           cursor.execute("""
           select institution, requirement_id
-            from active_req_blocks
+            from requirement_blocks
+           where term_info is not null
           """)
           active_blocks = [(row.institution, row.requirement_id) for row in cursor.fetchall()]
         with conn.cursor() as update_cursor:
           for institution, requirement_id, start, stop, requirement_text in potential_parse_list:
-            try:
+            if (institution, requirement_id) in active_blocks:
               requirement_html = parse_block(institution, requirement_id,
                                              start, stop, requirement_text,
                                              timelimit=3)
@@ -501,11 +502,19 @@ if __name__ == '__main__':
               update requirement_blocks set requirement_html = %s
                where institution = %s and requirement_id = %s
               """, (Jsonb(requirement_html), institution, requirement_id))
-            except KeyError:
+            else:
+              # Ignore changed inactive blocks ... for now, at least.
               pass
 
         s = '' if num_parsed == 1 else 's'
-        msg = f'{num_parsed:6,} Requirement Block{s} PARSED'
+        msg = f'{num_parsed:6,} active requirement block{s} changed and PARSED'
+        print(msg)
+        front_matter += f'<p>{msg}</p>'
+
+        num_not_parsed = len_potential_parse_list - num_parsed
+        s = '' if num_not_parsed == 1 else 's'
+        not_parsed = 'No' if num_not_parsed == 0 else f'{num_not_parsed:,}'
+        msg = f'{not_parsed} inactive requirement block{s} changed, but NOT PARSED'
         print(msg)
         front_matter += f'<p>{msg}</p>'
 
