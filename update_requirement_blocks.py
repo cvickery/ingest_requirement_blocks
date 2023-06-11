@@ -507,14 +507,13 @@ if __name__ == '__main__':
               pass
 
         s = '' if num_parsed == 1 else 's'
-        msg = f'{num_parsed:6,} active requirement block{s} changed and PARSED'
+        msg = f'{num_parsed:6,} Active requirement block{s} changed and PARSED'
         print(msg)
         front_matter += f'<p>{msg}</p>'
 
-        num_not_parsed = len_potential_parse_list - num_parsed
+        num_not_parsed = len(potential_parse_list) - num_parsed
         s = '' if num_not_parsed == 1 else 's'
-        not_parsed = 'No' if num_not_parsed == 0 else f'{num_not_parsed:,}'
-        msg = f'{not_parsed} inactive requirement block{s} changed, but NOT PARSED'
+        msg = f'{num_not_parsed:6} Inactive requirement block{s} changed and NOT PARSED'
         print(msg)
         front_matter += f'<p>{msg}</p>'
 
