@@ -36,6 +36,10 @@ def status_report(dap_req_block_date: str, irdw_load_date: str, front_matter: st
   td:nth-child(2) {
     text-align: right;
   }
+  .warning {
+    font-weight: bold;
+    color: #600;
+  }
   </style>
 
   """

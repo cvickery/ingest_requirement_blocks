@@ -1,13 +1,19 @@
 #! /usr/local/bin/python3
 """Insert or update the cuny_programs.requirement_blocks table from a cuny-wide extract.
 
-Includes an institution column in addition to the DegreeWorks DAP_REQ_BLOCK columns.)
+  Alters the following fields in the requirement_blocks table:
+    If the a dap_req_block row is new, and entire new row is added to requirement_blocks.
+    Otherwise, the dap_req_block row is checked for metadata and/or requirement_text changes; log
+    changes to the history directory.
+    For each new or changed block:
+      Set the parse_tree, dgw_seconds, and dgw_timestamp values to Null.
 
-  2019-11-10
-  Accept requirement block exports in either csv or xml format.
+    Invoke mk_term_info.py to replace (or initialize) the term_info dict for all blocks from the
+    latest dgw_ir_active_requirements.csv file. Log the latest active term for missing blocks.
 
-  2019-07-26
-  This version works with the CUNY-wide dgw_dap_req_block table maintained by OIRA.
+    Invoke regenerate_html.py to replace (or initialize) the requirement_html field for all blocks.
+
+    Create a list of unparsed blocks and their latest active terms, but do not parse them here.
 
   CUNY Institutions Not In DegreeWorks
   GRD01 | The Graduate Center
@@ -65,8 +71,6 @@ from subprocess import run
 from types import SimpleNamespace
 from xml.etree.ElementTree import parse
 
-from dgw_parser import parse_block
-
 from scribe_to_html import to_html
 
 csv.field_size_limit(sys.maxsize)
@@ -93,7 +97,7 @@ def decruft(block):
   """Remove chars in the range 0x0e through 0x1f and return the block otherwise unchanged.
 
   This is the same thing strip_file does, which has to be run before this program for xml files. But
-  for csv files where strip_files wasn't run, this makes the text cleaner, avoiding possible parsing
+  for csv files where strip_files wasn’t run, this makes the text cleaner, avoiding possible parsing
   problems.
   """
   return_block = block.translate(cruft_table)
@@ -162,14 +166,11 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('-p', '--progress', action='store_true')
   parser.add_argument('-t', '--timing', action='store_true')
-  parser.add_argument('--parse', dest='parse', action='store_true')
-  parser.add_argument('--no_parse', dest='parse', action='store_false')
   parser.add_argument('--log_unchanged', action='store_true')
   parser.add_argument('--skip_downloads', action='store_true')
   parser.add_argument('--skip_email', action='store_true')
   parser.add_argument('--delimiter', default=',')
   parser.add_argument('--quotechar', default='"')
-  parser.add_argument('--timelimit', default='3')
   parser.set_defaults(parse=True)
   args = parser.parse_args()
 
@@ -179,12 +180,17 @@ if __name__ == '__main__':
   home_dir = Path.home()
   archives_dir = Path(home_dir, 'Projects/ingest_requirement_blocks/archives')
 
-  print(f'{Path(sys.argv[0]).name} on {hostname} at '
-        f'{datetime.datetime.now().isoformat()[0:19].replace("T", " ")}')
+  # What, where, and when
+  header = f'{Path(sys.argv[0]).name} on {hostname} at {datetime.date.today()}'
 
-  front_matter = ''
-  # Download current dgw_dap_req_block.csv and dgw_ir_active_requirements.csv from Tumbleweed,
-  # provided this computer has access and command line hasn't overridden this step.
+  if args.progress:
+    print(header)
+
+  # front_matter is text that will go at the beginning of email reports.
+  front_matter = f'<h1>{header}<h1>'
+
+  # Download current dgw_dap_req_block.csv and dgw_ir_active_requirements.csv files from Tumbleweed,
+  # if available.
   if is_cuny:
     if not args.skip_downloads:
       lftpwd = Path(home_dir, '.lftpwd').open().readline().strip()
@@ -207,21 +213,21 @@ if __name__ == '__main__':
              'period_stop', 'school', 'degree', 'college', 'major1', 'major2', 'concentration',
              'minor', 'liberal_learning', 'specialization', 'program', 'parse_status', 'parse_date',
              'parse_who', 'parse_what', 'lock_version', 'requirement_text', 'requirement_html',
-             'parse_tree', 'irdw_load_date']
+             'parse_tree', 'irdw_load_date', 'dgw_seconds', 'dgw_parse_date', 'term_info']
   vals = '%s, ' * len(db_cols)
   vals = '(' + vals.strip(', ') + ')'
 
   DB_Record = namedtuple('DB_Record', db_cols)
 
-  # The default--or explicit--file is downloads/dap_req_block.csv
-  file = Path('downloads/dgw_dap_req_block.csv')
+  # If there is a new dap_req_block in downloads, date it, and move it to the archives dir.
+  file = Path('./downloads/dgw_dap_req_block.csv')
   if file.exists():
     # Move the downloads file to archives, where it will be the "latest"
     file_date = str(datetime.date.fromtimestamp(int(file.stat().st_mtime)))
     new_name = file.name.replace('.csv', f'_{file_date}.csv')
     file.rename(Path(archives_dir, new_name))
 
-  # The default or explicit file is not available: try the latest archived dap_req_block.csv
+  # Now get the latest archived dap_req_block file available in ./archives
   archive_files = archives_dir.glob('dgw_dap_req_block*.csv')
   latest = None
   for archive_file in archive_files:
@@ -232,6 +238,7 @@ if __name__ == '__main__':
   file = latest
   file_date = str(datetime.date.fromtimestamp(int(file.stat().st_mtime)))
 
+  # Obsolete support for XML format. Only CSV files actually occur now.
   if file.suffix.lower() == '.xml':
     generator = xml_generator
   elif file.suffix.lower() == '.csv':
@@ -248,10 +255,7 @@ if __name__ == '__main__':
     num_rows += 1
 
   # Here begins the actual update process
-
-  quarantine_manager = QuarantineManager()
-
-  potential_parse_list = []
+  # -----------------------------------------------------------------------------------------------
 
   # Process the dgw_dap_req_block file
   with psycopg.connect('dbname=cuny_curriculum') as conn:
@@ -284,15 +288,16 @@ if __name__ == '__main__':
           print(f'\r{row_num:,}/{num_rows:,}', end='')
 
         """ Determine the action to take.
-              If args.parse, generate a new parse_tree, and update or insert as the case may be
               If this is a new block, do insert
-              If this is an existing block and it has changed, do update
-              During development, if block exists, has not changed, but parse_date has changed,
-              report it.
+              If this is an existing block and it has changed, do update (Check both
+              requirement_text and key metadata for changes)
         """
         action = Action()
+
         requirement_text = decruft(new_row.requirement_text)
         requirement_html = to_html(requirement_text)
+
+        # When did the college parse the block?
         parse_date = datetime.date.fromisoformat(new_row.parse_date)
 
         # Check for changes in the data and metadata items that we use.
@@ -344,8 +349,8 @@ if __name__ == '__main__':
               exec(f'new_value = new_row.{item}')
             if old_value != new_value:
               action.do_update = True
-              print(f'{new_row.institution} {new_row.requirement_id} {item}: {old_value}:{new_value}',
-                    file=log_file)
+              print(f'{new_row.institution} {new_row.requirement_id} {item}: {old_value}:'
+                    f'{new_value}', file=log_file)
 
         # Insert or update the requirement_block as the case may be
         if action.do_insert:
@@ -374,7 +379,9 @@ if __name__ == '__main__':
                                        new_row.lock_version,
                                        requirement_text,
                                        requirement_html,
-                                       empty_parse_tree,
+                                       None,
+                                       None,
+                                       None,
                                        irdw_load_date])
 
           vals = ', '.join([f"'{val}'" for val in db_record])
@@ -399,7 +406,9 @@ if __name__ == '__main__':
                          'lock_version': new_row.lock_version,
                          'requirement_text': requirement_text,
                          'requirement_html': requirement_html,
-                         'parse_tree': empty_parse_tree,
+                         'parse_tree': None,
+                         'dgw_seconds': None,
+                         'dgw_parse_date': None,
                          'irdw_load_date': irdw_load_date,
                          }
           set_args = ','.join([f'{key}=%s' for key in update_dict.keys()])
@@ -418,26 +427,16 @@ if __name__ == '__main__':
             print(f'No change {new_row.institution} {new_row.requirement_id} {new_row.block_type} '
                   f'{new_row.block_value}.', file=log_file)
 
-        if args.parse and (action.do_insert or action.do_update):
-          # If the block is current, add it to the list of potential blocks to (re-)parse
-          if new_row.period_stop.startswith('9'):
-            potential_parse_list.append((copy(new_row.institution), copy(new_row.requirement_id),
-                                         copy(new_row.period_start), copy(new_row.period_stop),
-                                         copy(new_row.requirement_text)))
+        # if args.parse and (action.do_insert or action.do_update):
+        #   # If the block is current, add it to the list of potential blocks to (re-)parse
+        #   if new_row.period_stop.startswith('9'):
+        #     potential_parse_list.append((copy(new_row.institution), copy(new_row.requirement_id),
+        #                                  copy(new_row.period_start), copy(new_row.period_stop),
+        #                                  copy(new_row.requirement_text)))
 
       cursor.execute(f"""update updates
                             set update_date = '{load_date}', file_name = '{file.name}'
                           where table_name = 'requirement_blocks'""")
-
-  # Archive the file just processed, unless it's already there
-  if file.parent.name != 'archives':
-    print(f'Archive {file.parent.name} to archives')
-    target = Path(archives_dir, f'{file.stem}_{load_date}{file.suffix}')
-    file = file.rename(target)
-
-  # Be sure the file modification time matches the load_date
-  mtime = time.mktime(irdw_load_date.timetuple())
-  os.utime(file, (mtime, mtime))
 
   # Summarize DAP_REQ_BLOCK processing.
   if num_updated + num_inserted == 0:
@@ -456,104 +455,129 @@ if __name__ == '__main__':
     print(msg)
     front_matter += f'<p>{msg}</p>'
 
-    if args.timing:
-      m, s = divmod(int(round(time.time())) - start_time, 60)
-      h, m = divmod(m, 60)
-      print(f'  {int(h):02}:{int(m):02}:{round(s):02}')
+  if args.timing:
+    m, s = divmod(int(round(time.time())) - start_time, 60)
+    h, m = divmod(m, 60)
+    print(f'  {int(h):02}:{int(m):02}:{round(s):02}')
 
-    # Regenerate the requirement_html column of requirement_blocks table
-    print('Regenerate requirement_blocks.requirement_html')
-    substep_start = time.time()
-    run(['./regenerate_html.py'], stdout=sys.stdout, stderr=sys.stdout)
-    if args.timing:
-      m, s = divmod(int(round(time.time() - substep_start)), 60)
-      h, m = divmod(m, 60)
-      print(f'  {int(h):02}:{int(m):02}:{round(s):02}')
+  # Regenerate the requirement_html column of requirement_blocks table
+  print('Regenerate requirement_blocks.requirement_html')
+  substep_start = time.time()
+  run(['./regenerate_html.py'], stdout=sys.stdout, stderr=sys.stdout)
+  if args.timing:
+    m, s = divmod(int(round(time.time() - substep_start)), 60)
+    h, m = divmod(m, 60)
+    print(f'  {int(h):02}:{int(m):02}:{round(s):02}')
 
-    # Create table of active requirement blocks
-    """This table is used here to filter the list of potential blocks to parse, and by the
-       requirement mapper to select blocks to process.
-       mk_active_req_blocks drops the dgw.plans and dgw.subplans tables, but the requirements
-       mapper rebuilds them automatically.
-    """
-    print('Populate requirement_blocks.term_info')
-    result = run(['./mk_term_info.py'], stdout=sys.stdout, stderr=sys.stdout)
-    if result.returncode != 0:
-      print('\nmk_term_info FAILED! Not parsing active blocks; not running mapper.')
-    else:
-      # Select active blocks from the potential_parse_list, and parse them
-      print('\nCache active block keys')
-      with psycopg.connect('dbname=cuny_curriculum') as conn:
-        with conn.cursor(row_factory=namedtuple_row) as cursor:
-          cursor.execute("""
-          select institution, requirement_id
-            from requirement_blocks
-           where term_info is not null
-          """)
-          active_blocks = [(row.institution, row.requirement_id) for row in cursor.fetchall()]
-        with conn.cursor() as update_cursor:
-          for institution, requirement_id, start, stop, requirement_text in potential_parse_list:
-            if (institution, requirement_id) in active_blocks:
-              requirement_html = parse_block(institution, requirement_id,
-                                             start, stop, requirement_text,
-                                             timelimit=3)
-              num_parsed += 1
-              update_cursor.execute("""
-              update requirement_blocks set requirement_html = %s
-               where institution = %s and requirement_id = %s
-              """, (Jsonb(requirement_html), institution, requirement_id))
-            else:
-              # Ignore changed inactive blocks ... for now, at least.
-              pass
+  print('Populate requirement_blocks.term_info')
+  result = run(['./mk_term_info.py'], stdout=sys.stdout, stderr=sys.stdout)
+  if result.returncode != 0:
+    print('\nmk_term_info FAILED!')
+  # else:
+  #   # Select active blocks from the potential_parse_list, and parse them
+  #   print('\nCache active block keys')
+  #   with psycopg.connect('dbname=cuny_curriculum') as conn:
+  #     with conn.cursor(row_factory=namedtuple_row) as cursor:
+  #       cursor.execute("""
+  #       select institution, requirement_id
+  #         from requirement_blocks
+  #        where term_info is not null
+  #       """)
+  #       active_blocks = [(row.institution, row.requirement_id) for row in cursor.fetchall()]
+  #     with conn.cursor() as update_cursor:
+  #       for institution, requirement_id, start, stop, requirement_text in potential_parse_list:
+  #         if (institution, requirement_id) in active_blocks:
+  #           requirement_html = parse_block(institution, requirement_id,
+  #                                          start, stop, requirement_text,
+  #                                          timelimit=3)
+  #           num_parsed += 1
+  #           update_cursor.execute("""
+  #           update requirement_blocks set requirement_html = %s
+  #            where institution = %s and requirement_id = %s
+  #           """, (Jsonb(requirement_html), institution, requirement_id))
+  #         else:
+  #           # Ignore changed inactive blocks ... for now, at least.
+  #           pass
 
-        s = '' if num_parsed == 1 else 's'
-        msg = f'{num_parsed:6,} Active requirement block{s} changed and PARSED'
-        print(msg)
-        front_matter += f'<p>{msg}</p>'
+  #     s = '' if num_parsed == 1 else 's'
+  #     msg = f'{num_parsed:6,} Active requirement block{s} changed and PARSED'
+  #     print(msg)
+  #     front_matter += f'<p>{msg}</p>'
 
-        num_not_parsed = len(potential_parse_list) - num_parsed
-        s = '' if num_not_parsed == 1 else 's'
-        msg = f'{num_not_parsed:6} Inactive requirement block{s} changed and NOT PARSED'
-        print(msg)
-        front_matter += f'<p>{msg}</p>'
+  #     num_not_parsed = len(potential_parse_list) - num_parsed
+  #     s = '' if num_not_parsed == 1 else 's'
+  #     msg = f'{num_not_parsed:6} Inactive requirement block{s} changed and NOT PARSED'
+  #     print(msg)
+  #     front_matter += f'<p>{msg}</p>'
 
-      # Run the requirement mapper on all active requirement blocks
-      print('Run Course Mapper')
-      substep_start = time.time()
-      course_mapper = Path(home_dir, 'Projects/requirement_mapper')
-      csv_repository = Path(home_dir, 'Projects/transfer_app/static/csv')
-      # result = run([Path(course_mapper, 'course_mapper.py')],
-      #              stdout=sys.stdout, stderr=sys.stdout)
-      # if result.returncode != 0:
-      #   print('  Course Mapper FAILED!')
-      #   front_matter += '<p><strong>Course Mapper Failed!</strong></p>'
-      # else:
-      #   print('Copy Course Mapper results to transfer_app/static/csv/')
-      #   mapper_files = Path(course_mapper, 'reports').glob('dgw_*')
-      #   for mapper_file in mapper_files:
-      #     shutil.copy2(mapper_file, csv_repository)
+  # Run the requirement mapper on all active requirement blocks
+  print('Run Course Mapper')
+  substep_start = time.time()
+  course_mapper = Path(home_dir, 'Projects/requirement_mapper')
+  csv_repository = Path(home_dir, 'Projects/transfer_app/static/csv')
+  # result = run([Path(course_mapper, 'course_mapper.py')],
+  #              stdout=sys.stdout, stderr=sys.stdout)
+  # if result.returncode != 0:
+  #   print('  Course Mapper FAILED!')
+  #   front_matter += '<p><strong>Course Mapper Failed!</strong></p>'
+  # else:
+  #   print('Copy Course Mapper results to transfer_app/static/csv/')
+  #   mapper_files = Path(course_mapper, 'reports').glob('dgw_*')
+  #   for mapper_file in mapper_files:
+  #     shutil.copy2(mapper_file, csv_repository)
 
-      #   print('Load mapping tables')
-      #   result = run([Path(course_mapper, 'load_mapping_tables.py')],
-      #                stdout=sys.stdout, stderr=sys.stdout)
-      #   if result.returncode != 0:
-      #     print('  Load mapping tables FAILED!')
+  #   print('Load mapping tables')
+  #   result = run([Path(course_mapper, 'load_mapping_tables.py')],
+  #                stdout=sys.stdout, stderr=sys.stdout)
+  #   if result.returncode != 0:
+  #     print('  Load mapping tables FAILED!')
 
-      print('Email mapping files status report')
-      html_msg = status_report(file_date, load_date, front_matter)
-      if is_cuny and not args.skip_email:
-        subject = 'Course Mapper files report'
-        to_list = [{'name': 'Christopher Buonocore',
-                    'email': 'Christopher.Buonocore@lehman.cuny.edu'},
-                   {'name': 'Elkin Urrea', 'email': 'Elkin.Urrea@lehman.cuny.edu'},
-                   {'name': 'David Ling', 'email': 'David.Ling@lehman.cuny.edu'},
-                   {'name': 'Christopher Vickery', 'email': 'Christopher.Vickery@qc.cuny.edu'},
-                   ]
-      else:
-        subject = f'Requirement block ingestion report from {hostname}'
-        to_list = [{'name': 'Christopher Vickery', 'email': 'Christopher.Vickery@qc.cuny.edu'}]
-      sender = {'name': 'T-Rex Labs', 'email': 'christopher.vickery@qc.cuny.edu'}
-      send_message(to_list, sender, subject, html_msg)
+  # Generate list of un-parsed current blocks with term_info.
+  with psycopg.connect('dbname=cuny_curriculum') as conn:
+    with conn.cursor(row_factory=namedtuple_row) as cursor:
+      cursor.execute("""
+      select institution, requirement_id, term_info
+        from requirement_blocks
+       where parse_tree is null
+         and term_info is not null
+         and period_stop ~* '^9'
+      order by institution, requirement_id
+      """)
+      parse_report = """<h2>Unparsed Blocks</h2>
+      <table><tr><th>Institution</th><th>Requirement ID</th><th>Latest Term</th></tr>
+      """
+      this_year = (datetime.date.today().year - 1900) * 10
+      for row in cursor:
+        value = row.term_info
+        value = sorted(value, key=lambda d: d['active_term'])
+        latest_term = value[-1]['active_term']
+        if latest_term >= this_year:
+          latest_term = f'<span class="warning">{latest_term}</span>'
+        parse_report += f"""
+        <tr>
+          <td>{row.institution}</td>
+          <td>{row.requirement_id}</td>
+          <td>{value[-1]['active_term']}</td>
+        </tr>
+        """
+  parse_report += '</table>\n'
+
+  print('Email mapping files status report')
+  html_msg = status_report(file_date, load_date, front_matter)
+  html_msg += parse_report
+  if is_cuny and not args.skip_email:
+    subject = 'Requirement Block Ingestion Report'
+    to_list = [{'name': 'Christopher Buonocore',
+                'email': 'Christopher.Buonocore@lehman.cuny.edu'},
+               {'name': 'Elkin Urrea', 'email': 'Elkin.Urrea@lehman.cuny.edu'},
+               {'name': 'David Ling', 'email': 'David.Ling@lehman.cuny.edu'},
+               {'name': 'Christopher Vickery', 'email': 'Christopher.Vickery@qc.cuny.edu'},
+               ]
+  else:
+    subject = f'Requirement block ingestion report from {hostname}'
+    to_list = [{'name': 'Christopher Vickery', 'email': 'Christopher.Vickery@qc.cuny.edu'}]
+  sender = {'name': 'T-Rex Labs', 'email': 'christopher.vickery@qc.cuny.edu'}
+  send_message(to_list, sender, subject, html_msg)
 
   if args.timing:
     m, s = divmod(int(round(time.time() - substep_start)), 60)

@@ -4,8 +4,10 @@
 import csv
 import json
 import psycopg
+import re
 import sys
 
+from checksize import check_size
 from collections import defaultdict, namedtuple
 from datetime import date
 from pathlib import Path
@@ -36,7 +38,7 @@ if __name__ == '__main__':
   downloaded = Path(downloads_dir, 'dgw_ir_active_requirements.csv')
   if downloaded.is_file():
 
-    file_date = datetime.date.fromtimestamp(downloaded.stat().st_mtime)
+    file_date = date.fromtimestamp(downloaded.stat().st_mtime)
     new_name = downloaded.name.replace('.csv', f'_{file_date}.csv')
 
     # Check new file’s size is within 10% of previous file.
@@ -67,9 +69,10 @@ if __name__ == '__main__':
       Row = namedtuple('Row', ' '.join(col.lower().replace(' ', '_') for col in line))
     else:
       row = Row._make(line)
-      term_info = {'active_term': int(row.dap_active_term.strip('U')),
-                   'distinct_students': int(row.distinct_students)}
-      active_blocks[(row.institution, row.dap_req_id)].append(term_info)
+      if re.findall(r'RA\d{6}', row.dap_req_id):
+        term_info = {'active_term': int(row.dap_active_term.strip('U')),
+                     'distinct_students': int(row.distinct_students)}
+        active_blocks[(row.institution, row.dap_req_id)].append(term_info)
 
   log_pathname = Path(logs_dir, f'mk_term_info_{date.today()}.log')
   with log_pathname.open('w') as log_file:
@@ -83,6 +86,7 @@ if __name__ == '__main__':
         # Add the term_info list for each active block
         num_set = 0
         for key, value in active_blocks.items():
+          value = sorted(value, key=lambda d: d['active_term'])
           institution, requirement_id = key
           cursor.execute("""
           update requirement_blocks set term_info = %s
@@ -91,7 +95,8 @@ if __name__ == '__main__':
           """, (json.dumps(value), institution, requirement_id))
 
           if cursor.rowcount != 1:
-            print(f'{institution} {requirement_id} {cursor.rowcount} {value}', file=log_file)
+            # Print the last active term for missing rows
+            print(f'{institution} {requirement_id} {value[-1]["active_term"]}', file=log_file)
           else:
             num_set += 1
 
