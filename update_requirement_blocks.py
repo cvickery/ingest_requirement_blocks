@@ -181,16 +181,14 @@ if __name__ == '__main__':
   archives_dir = Path(home_dir, 'Projects/ingest_requirement_blocks/archives')
 
   # What, where, and when
-  header = f'{Path(sys.argv[0]).name} on {hostname} at {datetime.date.today()}'
+  www = f'This is {Path(sys.argv[0]).name} at {hostname} on {datetime.date.today()}'
 
   if args.progress:
-    print(header)
+    print(www)
 
   # front_matter is text that will go at the beginning of email reports.
-  front_matter = f'<h1>{header}<h1>'
-
-  # Download current dgw_dap_req_block.csv and dgw_ir_active_requirements.csv files from Tumbleweed,
-  # if available.
+  front_matter = f'<p><strong>{www}</strong></p>'
+  # Download current dgw_dap_req_block.csv from Tumbleweed, if available.
   if is_cuny:
     if not args.skip_downloads:
       lftpwd = Path(home_dir, '.lftpwd').open().readline().strip()
@@ -203,10 +201,10 @@ if __name__ == '__main__':
                            'sftp://st-edge.cuny.edu'],
                           input=commands, text=True, stdout=sys.stdout)
       if tumble_result.returncode != 0:
-        front_matter += '<p>Tumbleweed download <strong>FAILED</strong>.</p>'
+        front_matter += '<div class="warning"><p>Tumbleweed download FAILED.</p></div>'
         print('  Tumbleweed download FAILED.')
   else:
-    front_matter += f'<p>Tumbleweed not available from {hostname}</p>'
+    front_matter += f'<p><strong>Tumbleweed not available from {hostname}</strong></p>'
     print(f'Tumbleweed not available from {hostname}')
 
   db_cols = ['institution', 'requirement_id', 'block_type', 'block_value', 'title', 'period_start',
@@ -297,7 +295,7 @@ if __name__ == '__main__':
         requirement_text = decruft(new_row.requirement_text)
         requirement_html = to_html(requirement_text)
 
-        # When did the college parse the block?
+        # When did the institution last parse the block?
         parse_date = datetime.date.fromisoformat(new_row.parse_date)
 
         # Check for changes in the data and metadata items that we use.
@@ -427,18 +425,17 @@ if __name__ == '__main__':
             print(f'No change {new_row.institution} {new_row.requirement_id} {new_row.block_type} '
                   f'{new_row.block_value}.', file=log_file)
 
-        # if args.parse and (action.do_insert or action.do_update):
-        #   # If the block is current, add it to the list of potential blocks to (re-)parse
-        #   if new_row.period_stop.startswith('9'):
-        #     potential_parse_list.append((copy(new_row.institution), copy(new_row.requirement_id),
-        #                                  copy(new_row.period_start), copy(new_row.period_stop),
-        #                                  copy(new_row.requirement_text)))
-
       cursor.execute(f"""update updates
                             set update_date = '{load_date}', file_name = '{file.name}'
                           where table_name = 'requirement_blocks'""")
 
   # Summarize DAP_REQ_BLOCK processing.
+  front_matter += f"""
+        <div>
+          <p><span class="label">DAP_REQ_BLOCK File Date:</span> {file_date}</p>
+          <p><span class="label">IRDW_LOAD_DATE:</span> {irdw_load_date}</p>
+        </div>"""
+
   if num_updated + num_inserted == 0:
     # Make this easy to see in the email report to me
     print('\nNO NEW OR UPDATED BLOCKS FOUND\n')
@@ -470,100 +467,57 @@ if __name__ == '__main__':
     print(f'  {int(h):02}:{int(m):02}:{round(s):02}')
 
   print('Populate requirement_blocks.term_info')
+
+  # mk_term_info manages OAREDA’s dgw_ir_active_requirements.csv files
   result = run(['./mk_term_info.py'], stdout=sys.stdout, stderr=sys.stdout)
   if result.returncode != 0:
     print('\nmk_term_info FAILED!')
-  # else:
-  #   # Select active blocks from the potential_parse_list, and parse them
-  #   print('\nCache active block keys')
-  #   with psycopg.connect('dbname=cuny_curriculum') as conn:
-  #     with conn.cursor(row_factory=namedtuple_row) as cursor:
-  #       cursor.execute("""
-  #       select institution, requirement_id
-  #         from requirement_blocks
-  #        where term_info is not null
-  #       """)
-  #       active_blocks = [(row.institution, row.requirement_id) for row in cursor.fetchall()]
-  #     with conn.cursor() as update_cursor:
-  #       for institution, requirement_id, start, stop, requirement_text in potential_parse_list:
-  #         if (institution, requirement_id) in active_blocks:
-  #           requirement_html = parse_block(institution, requirement_id,
-  #                                          start, stop, requirement_text,
-  #                                          timelimit=3)
-  #           num_parsed += 1
-  #           update_cursor.execute("""
-  #           update requirement_blocks set requirement_html = %s
-  #            where institution = %s and requirement_id = %s
-  #           """, (Jsonb(requirement_html), institution, requirement_id))
-  #         else:
-  #           # Ignore changed inactive blocks ... for now, at least.
-  #           pass
-
-  #     s = '' if num_parsed == 1 else 's'
-  #     msg = f'{num_parsed:6,} Active requirement block{s} changed and PARSED'
-  #     print(msg)
-  #     front_matter += f'<p>{msg}</p>'
-
-  #     num_not_parsed = len(potential_parse_list) - num_parsed
-  #     s = '' if num_not_parsed == 1 else 's'
-  #     msg = f'{num_not_parsed:6} Inactive requirement block{s} changed and NOT PARSED'
-  #     print(msg)
-  #     front_matter += f'<p>{msg}</p>'
-
-  # Run the requirement mapper on all active requirement blocks
-  print('Run Course Mapper')
-  substep_start = time.time()
-  course_mapper = Path(home_dir, 'Projects/requirement_mapper')
-  csv_repository = Path(home_dir, 'Projects/transfer_app/static/csv')
-  # result = run([Path(course_mapper, 'course_mapper.py')],
-  #              stdout=sys.stdout, stderr=sys.stdout)
-  # if result.returncode != 0:
-  #   print('  Course Mapper FAILED!')
-  #   front_matter += '<p><strong>Course Mapper Failed!</strong></p>'
-  # else:
-  #   print('Copy Course Mapper results to transfer_app/static/csv/')
-  #   mapper_files = Path(course_mapper, 'reports').glob('dgw_*')
-  #   for mapper_file in mapper_files:
-  #     shutil.copy2(mapper_file, csv_repository)
-
-  #   print('Load mapping tables')
-  #   result = run([Path(course_mapper, 'load_mapping_tables.py')],
-  #                stdout=sys.stdout, stderr=sys.stdout)
-  #   if result.returncode != 0:
-  #     print('  Load mapping tables FAILED!')
-
-  # Generate list of un-parsed current blocks with term_info.
-  with psycopg.connect('dbname=cuny_curriculum') as conn:
-    with conn.cursor(row_factory=namedtuple_row) as cursor:
-      cursor.execute("""
-      select institution, requirement_id, term_info
-        from requirement_blocks
-       where parse_tree is null
-         and term_info is not null
-         and period_stop ~* '^9'
-      order by institution, requirement_id
-      """)
-      parse_report = """<h2>Unparsed Blocks</h2>
-      <table><tr><th>Institution</th><th>Requirement ID</th><th>Latest Term</th></tr>
-      """
-      this_year = (datetime.date.today().year - 1900) * 10
-      for row in cursor:
-        value = row.term_info
-        value = sorted(value, key=lambda d: d['active_term'])
-        latest_term = value[-1]['active_term']
-        if latest_term >= this_year:
-          latest_term = f'<span class="warning">{latest_term}</span>'
-        parse_report += f"""
-        <tr>
-          <td>{row.institution}</td>
-          <td>{row.requirement_id}</td>
-          <td>{value[-1]['active_term']}</td>
-        </tr>
-        """
-  parse_report += '</table>\n'
+    parse_report = """
+    <div class="warning">
+      <p>mk_term_info.py FAILED!</p>
+    </div>
+    <p><strong>No Unparsed Blocks Report</strong></p>
+    """
+  else:
+    # Generate table of un-parsed current blocks, giving most-recent active term.
+    with psycopg.connect('dbname=cuny_curriculum') as conn:
+      with conn.cursor(row_factory=namedtuple_row) as cursor:
+        cursor.execute("""
+        select institution, requirement_id, term_info
+          from requirement_blocks
+         where parse_tree is null
+           and term_info is not null
+           and period_stop ~* '^9'
+        order by institution, requirement_id
+        """)
+        this_year = (datetime.date.today().year - 1900) * 10
+        num_warnings = 0
+        table_body = ''
+        for row in cursor:
+          value = row.term_info
+          value = sorted(value, key=lambda d: d['active_term'])
+          latest_term = value[-1]['active_term']
+          class_attribute = ''
+          if latest_term >= this_year:
+            class_attribute = ' class="warning"'
+            num_warnings += 1
+          table_body += f"""
+          <tr{class_attribute}>
+            <td>{row.institution}</td>
+            <td>{row.requirement_id}</td>
+            <td>{latest_term}</td>
+          </tr>
+          """
+    s = '' if num_warnings == 1 else 's'
+    parse_report = f"""<p><strong>Unparsed Blocks</strong></p>
+    <div class="warning"><p>{num_warnings} “this year” Alert{s}</p></div>
+    <table><tr><th>Institution</th><th>Requirement ID</th><th>Latest Term</th></tr>
+    {table_body}
+    </table>
+    """
 
   print('Email mapping files status report')
-  html_msg = status_report(file_date, load_date, front_matter)
+  html_msg = status_report(front_matter)
   html_msg += parse_report
   if is_cuny and not args.skip_email:
     subject = 'Requirement Block Ingestion Report'

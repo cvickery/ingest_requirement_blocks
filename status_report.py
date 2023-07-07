@@ -11,7 +11,7 @@ csv.field_size_limit(1024 * 1024 * 1024)
 
 # status_report()
 # -------------------------------------------------------------------------------------------------
-def status_report(dap_req_block_date: str, irdw_load_date: str, front_matter: str) -> str:
+def status_report(front_matter: str) -> str:
   """Generate HTML report."""
   return_str = """
   <style>
@@ -38,20 +38,18 @@ def status_report(dap_req_block_date: str, irdw_load_date: str, front_matter: st
   }
   .warning {
     font-weight: bold;
-    color: #600;
+    background-color: #600;
+    color: #fff;
+  }
+  .warning p {
+    padding-left: 1em;
   }
   </style>
 
   """
 
   return_str += f"""
-  <div>
-    <p><span class="label">DAP_REQ_BLOCK File Date:</span> {dap_req_block_date}</p>
-    <p><span class="label">IRDW_LOAD_DATE:</span> {irdw_load_date}</p>
-  </div>
-
   {front_matter}
-
   <table><tr><th>File</th><th>File Size</th><th>File Date</th><th>Generate Date</th></tr>
         """
 

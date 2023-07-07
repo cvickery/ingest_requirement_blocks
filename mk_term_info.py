@@ -86,6 +86,7 @@ if __name__ == '__main__':
         # Add the term_info list for each active block
         num_set = 0
         for key, value in active_blocks.items():
+          # Sort by active_term so most-recent is last term in the list
           value = sorted(value, key=lambda d: d['active_term'])
           institution, requirement_id = key
           cursor.execute("""
