@@ -1,19 +1,19 @@
 #! /usr/local/bin/python3
 """Insert or update the cuny_programs.requirement_blocks table from a cuny-wide extract.
 
-  Alters the following fields in the requirement_blocks table:
-    If the a dap_req_block row is new, and entire new row is added to requirement_blocks.
-    Otherwise, the dap_req_block row is checked for metadata and/or requirement_text changes; log
-    changes to the history directory.
-    For each new or changed block:
-      Set the parse_tree, dgw_seconds, and dgw_timestamp values to Null.
+Alters the following fields in the requirement_blocks table:
+  If the a dap_req_block row is new, and entire new row is added to requirement_blocks.
+  Otherwise, the dap_req_block row is checked for metadata and/or requirement_text changes; log
+  changes to the history directory.
+  For each new or changed block:
+    Set the parse_tree, dgw_seconds, and dgw_timestamp values to Null.
 
-    Invoke mk_term_info.py to replace (or initialize) the term_info dict for all blocks from the
-    latest dgw_ir_active_requirements.csv file. Log the latest active term for missing blocks.
+  Invoke mk_term_info.py to replace (or initialize) the term_info dict for all blocks from the
+  latest dgw_ir_active_requirements.csv file. Log the latest active term for missing blocks.
 
-    Invoke regenerate_html.py to replace (or initialize) the requirement_html field for all blocks.
+  Invoke regenerate_html.py to replace (or initialize) the requirement_html field for all blocks.
 
-    Create a list of unparsed blocks and their latest active terms, but do not parse them here.
+  Create a list of unparsed blocks and their latest active terms, but do not parse them here.
 
   CUNY Institutions Not In DegreeWorks
   GRD01 | The Graduate Center
@@ -165,10 +165,10 @@ if __name__ == '__main__':
 
   parser = argparse.ArgumentParser()
   parser.add_argument('-p', '--progress', action='store_true')
-  parser.add_argument('-t', '--timing', action='store_true')
   parser.add_argument('--log_unchanged', action='store_true')
   parser.add_argument('--skip_downloads', action='store_true')
-  parser.add_argument('--skip_email', action='store_true')
+  parser.add_argument('--testing', action='store_true')
+  parser.add_argument('--timing', action='store_true')
   parser.add_argument('--delimiter', default=',')
   parser.add_argument('--quotechar', default='"')
   parser.set_defaults(parse=True)
@@ -519,7 +519,7 @@ if __name__ == '__main__':
   print('Email mapping files status report')
   html_msg = status_report(front_matter)
   html_msg += parse_report
-  if is_cuny and not args.skip_email:
+  if is_cuny and not args.testing:
     subject = 'Requirement Block Ingestion Report'
     to_list = [{'name': 'Christopher Buonocore',
                 'email': 'Christopher.Buonocore@lehman.cuny.edu'},
