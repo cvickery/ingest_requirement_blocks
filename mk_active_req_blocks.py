@@ -1,6 +1,10 @@
 #! /usr/local/bin/python3
 """Create the active_req_blocks table.
 
+====================================================================================================
+NO LONGER USED. ACTIVE BLOCKS ARE DETERMINED BY THE term_info FIELD OF THE REQUIREMENT_BLOCKS TABLE.
+====================================================================================================
+
 Terminology:
   A dap_req_block is a Degree Works "Degree Audit Process REQuirement BLOCK" which includes the
   Scribe code that specifies a set of requirements, along with attributes (metadata) to identify
