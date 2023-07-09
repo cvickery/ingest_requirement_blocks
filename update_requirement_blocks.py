@@ -64,7 +64,6 @@ from copy import copy, deepcopy
 from pathlib import Path
 from psycopg.rows import namedtuple_row
 from psycopg.types.json import Jsonb
-from quarantine_manager import QuarantineManager
 from sendemail import send_message
 from status_report import status_report
 from subprocess import run
