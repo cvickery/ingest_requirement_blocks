@@ -5,6 +5,7 @@ import psycopg
 import sys
 import time
 
+from argparse import ArgumentParser
 from psycopg.rows import namedtuple_row
 
 from scribe_to_html import to_html
@@ -12,6 +13,12 @@ from scribe_to_html import to_html
 if __name__ == '__main__':
   """Fetch requirement_text for all rows; update requirement_html for each."""
   start = time.time()
+  argparser = ArgumentParser('Update requirement_html for each requirement_text in '
+                             'requirement_blocks')
+  argparser.add_argument('-p', '--progress', action='store_true',
+                         help='enable progress messages')
+  args = argparser.parse_args()
+
   with psycopg.connect('dbname=cuny_curriculum') as conn:
     with conn.cursor(row_factory=namedtuple_row) as fetch_cursor:
       with conn.cursor() as update_cursor:
@@ -22,7 +29,8 @@ if __name__ == '__main__':
         counter = 0
         for row in fetch_cursor:
           counter += 1
-          print(f'\r{counter:,}/{num_blocks:,}', end='')
+          if args.progress:
+            print(f'\r{counter:,}/{num_blocks:,}', end='')
           requirement_html = to_html(row.requirement_text)
           update_cursor.execute("""update requirement_blocks set requirement_html = %s
                                     where institution = %s and requirement_id = %s

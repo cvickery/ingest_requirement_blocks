@@ -459,7 +459,10 @@ if __name__ == '__main__':
   # Regenerate the requirement_html column of requirement_blocks table
   print('Regenerate requirement_blocks.requirement_html')
   substep_start = time.time()
-  run(['./regenerate_html.py'], stdout=sys.stdout, stderr=sys.stdout)
+  run_regen = ['./regenerate_html.py']
+  if args.progress:
+    run_regen.append('--progress')
+  run(run_regen, stdout=sys.stdout, stderr=sys.stdout)
   if args.timing:
     m, s = divmod(int(round(time.time() - substep_start)), 60)
     h, m = divmod(m, 60)
