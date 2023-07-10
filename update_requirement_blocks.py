@@ -494,6 +494,7 @@ if __name__ == '__main__':
         """)
         this_year = (datetime.date.today().year - 1900) * 10
         num_warnings = 0
+        num_rows = cursor.rowcount
         table_body = ''
         for row in cursor:
           value = row.term_info
@@ -511,8 +512,10 @@ if __name__ == '__main__':
           </tr>
           """
     s = '' if num_warnings == 1 else 's'
-    parse_report = f"""<p><strong>Unparsed Blocks</strong></p>
-    <div class="warning"><p>{num_warnings} “this year” Alert{s}</p></div>
+    parse_report = f'<p><strong>{num_rows} Unparsed Blocks</strong></p>'
+    if num_warnings:
+      parse_report += f'<div class="warning"><p>{num_warnings} “this year” Alert{s}</p></div>'
+    parse_report += f"""
     <table><tr><th>Institution</th><th>Requirement ID</th><th>Latest Term</th></tr>
     {table_body}
     </table>

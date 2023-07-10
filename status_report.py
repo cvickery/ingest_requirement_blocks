@@ -45,19 +45,20 @@ def status_report(front_matter: str) -> str:
     padding-left: 1em;
   }
   </style>
+  """ + front_matter
 
-  """
-
-  return_str += f"""
-  {front_matter}
+  table_header = """
   <table><tr><th>File</th><th>File Size</th><th>File Date</th><th>Generate Date</th></tr>
         """
-
+  need_header = True
   units = ['B', 'KB', 'MB', 'GB', 'TB']
   home_dir = Path.home()
   files = Path(home_dir, 'Projects/transfer_app/static/csv').glob('dgw_*')
-
   for file in files:
+    if need_header:
+      return_str += table_header
+      need_header = False
+
     name = file.name.replace('course_mapper.', '')
     size = file.stat().st_size
     index = 0
@@ -84,6 +85,4 @@ def status_report(front_matter: str) -> str:
 
 
 if __name__ == '__main__':
-  if len(sys.argv) != 3:
-    exit(f'Usage: {sys.argv[0]} dap_req_block_date irdw_load_date')
-  print(status_report(sys.argv[1], sys.argv[2], '<p>This is front matter.</p>'))
+  print(status_report('<p>This is front matter.</p>'))
