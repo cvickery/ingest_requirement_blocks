@@ -210,7 +210,7 @@ if __name__ == '__main__':
              'period_stop', 'school', 'degree', 'college', 'major1', 'major2', 'concentration',
              'minor', 'liberal_learning', 'specialization', 'program', 'parse_status', 'parse_date',
              'parse_who', 'parse_what', 'lock_version', 'requirement_text', 'requirement_html',
-             'parse_tree', 'irdw_load_date', 'dgw_seconds', 'dgw_parse_date', 'term_info']
+             'irdw_load_date']
   vals = '%s, ' * len(db_cols)
   vals = '(' + vals.strip(', ') + ')'
 
@@ -351,7 +351,6 @@ if __name__ == '__main__':
 
         # Insert or update the requirement_block as the case may be
         if action.do_insert:
-
           db_record = DB_Record._make([new_row.institution,
                                        new_row.requirement_id,
                                        new_row.block_type,
@@ -376,10 +375,8 @@ if __name__ == '__main__':
                                        new_row.lock_version,
                                        requirement_text,
                                        requirement_html,
-                                       None,
-                                       None,
-                                       None,
-                                       irdw_load_date])
+                                       irdw_load_date
+                                       ])
 
           vals = ', '.join([f"'{val}'" for val in db_record])
           cursor.execute(f'insert into requirement_blocks ({",".join(db_cols)}) values ({vals})')
