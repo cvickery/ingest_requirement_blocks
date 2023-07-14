@@ -41,8 +41,8 @@ create view view_blocks as
          block_value,
          title,
          period_stop,
-         parse_date,
-         to_char(length(parse_tree::text), '999G999G999') as tree_size,
+         dgw_parse_date,
          dgw_seconds,
+         to_char(length(parse_tree::text), '999G999G999') as tree_size,
          irdw_load_date
   from requirement_blocks;
