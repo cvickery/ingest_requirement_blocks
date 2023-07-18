@@ -11,12 +11,10 @@ from psycopg.rows import dict_row
 
 # to_html()
 # -------------------------------------------------------------------------------------------------
-def to_html(requirement_text):
+def to_html(institution, requirement_id, requirement_text):
   """Generate a HTML details element for the code of a Scribe Block."""
-  # catalog_type, first_year, last_year, catalog_years_text = catalog_years(row.period_start,
-  #                                                                         row.period_stop)
-  # institution_name = institution_names[row.institution]
-  filtered_text = dgw_filter(requirement_text, remove_comments=False, remove_hidden=False)
+  filtered_text = dgw_filter(institution, requirement_id, requirement_text)
+
   html = f"""
 <details>
   <summary><strong>Degree Works Code</strong> (<em>Scribe Block</em>)</summary>
@@ -58,7 +56,7 @@ if __name__ == '__main__':
         block_title = row['title']
         period_start = row['period_start']
         period_stop = row['period_stop']
-        details = to_html(row['requirement_text'])
+        details = to_html(institution, requirement_id, row['requirement_text'])
   with open(f'{institution}_{requirement_id}.html', 'w') as html_file:
     print(f"""<!DOCTYPE html>
 <html>

@@ -31,7 +31,7 @@ if __name__ == '__main__':
           counter += 1
           if args.progress:
             print(f'\r{counter:,}/{num_blocks:,}', end='')
-          requirement_html = to_html(row.requirement_text)
+          requirement_html = to_html(row.institution, row. requirement_id, row.requirement_text)
           update_cursor.execute("""update requirement_blocks set requirement_html = %s
                                     where institution = %s and requirement_id = %s
                                 """, (requirement_html, row.institution, row.requirement_id))
