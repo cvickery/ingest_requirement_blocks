@@ -292,7 +292,7 @@ if __name__ == '__main__':
         action = Action()
 
         requirement_text = decruft(new_row.requirement_text)
-        requirement_html = to_html(requirement_text)
+        requirement_html = to_html(row.institution, row.requirement_id, requirement_text)
 
         # When did the institution last parse the block?
         parse_date = datetime.date.fromisoformat(new_row.parse_date)
