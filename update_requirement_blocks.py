@@ -519,8 +519,10 @@ if __name__ == '__main__':
     """
 
   print('Email mapping files status report')
-  html_msg = status_report(front_matter)
-  html_msg += parse_report
+  # No longer sending csv files to Lehman. They get the tables directly from the db.
+  # html_msg = status_report(front_matter)
+  # html_msg += parse_report
+  html_msg = parse_report
   if is_cuny and not args.testing:
     subject = 'Requirement Block Ingestion Report'
     to_list = [{'name': 'Christopher Buonocore',
