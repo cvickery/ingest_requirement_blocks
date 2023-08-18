@@ -525,10 +525,7 @@ if __name__ == '__main__':
   html_msg = parse_report
   if is_cuny and not args.testing:
     subject = 'Requirement Block Ingestion Report'
-    to_list = [{'name': 'Christopher Buonocore',
-                'email': 'Christopher.Buonocore@lehman.cuny.edu'},
-               {'name': 'Elkin Urrea', 'email': 'Elkin.Urrea@lehman.cuny.edu'},
-               {'name': 'David Ling', 'email': 'David.Ling@lehman.cuny.edu'},
+    to_list = [{'name': 'David Ling', 'email': 'David.Ling@lehman.cuny.edu'},
                {'name': 'Christopher Vickery', 'email': 'Christopher.Vickery@qc.cuny.edu'},
                ]
   else:
