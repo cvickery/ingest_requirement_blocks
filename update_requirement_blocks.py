@@ -467,11 +467,45 @@ if __name__ == '__main__':
 
   print('Populate requirement_blocks.term_info')
 
+  # Start report
+  parse_report = """
+  <style>
+  * {
+    font-family: sans-serif;
+    }
+  .label {
+    display: inline-block;
+    width: 15em;
+    font-weight: bold;
+  }
+  table {
+    border-collapse: collapse;
+  }
+  td, th {
+    border: 1px solid;
+    padding: 0.5em;
+  }
+  th {
+    background-color: #eee;
+  }
+  td:nth-child(2) {
+    text-align: right;
+  }
+  .warning {
+    font-weight: bold;
+    background-color: #600;
+    color: #fff;
+  }
+  .warning p {
+    padding-left: 1em;
+  }
+  </style>
+  """
   # mk_term_info manages OAREDA’s dgw_ir_active_requirements.csv files
   result = run(['./mk_term_info.py'], stdout=sys.stdout, stderr=sys.stdout)
   if result.returncode != 0:
     print('\nmk_term_info FAILED!')
-    parse_report = """
+    parse_report += """
     <div class="warning">
       <p>mk_term_info.py FAILED!</p>
     </div>
@@ -509,7 +543,7 @@ if __name__ == '__main__':
           </tr>
           """
     s = '' if num_warnings == 1 else 's'
-    parse_report = f'<p><strong>{num_rows} Unparsed Blocks</strong></p>'
+    parse_report += f'<p><strong>{num_rows} Unparsed Blocks</strong></p>'
     if num_warnings:
       parse_report += f'<div class="warning"><p>{num_warnings} “this year” Alert{s}</p></div>'
     parse_report += f"""
