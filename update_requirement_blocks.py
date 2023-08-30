@@ -500,7 +500,7 @@ if __name__ == '__main__':
     padding-left: 1em;
   }
   </style>
-  """
+  """ + front_matter
   # mk_term_info manages OAREDA’s dgw_ir_active_requirements.csv files
   result = run(['./mk_term_info.py'], stdout=sys.stdout, stderr=sys.stdout)
   if result.returncode != 0:
