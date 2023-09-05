@@ -502,16 +502,22 @@ if __name__ == '__main__':
   </style>
   """ + front_matter
   # mk_term_info manages OAREDA’s dgw_ir_active_requirements.csv files
-  result = run(['./mk_term_info.py'], stdout=sys.stdout, stderr=sys.stdout)
+  result = run(['./mk_term_info.py'], capture_output=True)
   if result.returncode != 0:
     print('\nmk_term_info FAILED!')
-    parse_report += """
+    parse_report += f"""
     <div class="warning">
       <p>mk_term_info.py FAILED!</p>
+      <p>{result.stderr}</p>
     </div>
     <p><strong>No Unparsed Blocks Report</strong></p>
     """
   else:
+    paragraphs = result.stdout.split(b'\n')
+    mk_term_report = '\n'.join([f'<p><strong>{str(p, encoding="utf-8")}</strong></p'
+                               for p in paragraphs])
+    parse_report += f'<p><strong>{mk_term_report}</strong></p>'
+
     # Generate table of un-parsed current blocks, giving most-recent active term.
     with psycopg.connect('dbname=cuny_curriculum') as conn:
       with conn.cursor(row_factory=namedtuple_row) as cursor:
