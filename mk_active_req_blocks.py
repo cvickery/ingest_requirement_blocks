@@ -45,7 +45,7 @@ BlockInfo = namedtuple('BlockInfo', 'block_type block_value block_title major1 '
 
 if __name__ == '__main__':
 
-  archives_dir = Path('archives')
+  archives_dir = Path('./archives')
 
   start = time.time()
   # Get the latest-available CSV of active program requirement_blocks from OAREDA
