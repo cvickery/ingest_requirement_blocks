@@ -427,8 +427,9 @@ if __name__ == '__main__':
 
   # Summarize DAP_REQ_BLOCK processing.
   front_matter += f"""
-        <div>
-          <p><span class="label">DAP_REQ_BLOCK File Date:</span> {file_date}</p>
+        <div class="hr">
+          <p class="label">DAP_REQ_BLOCK</p>
+          <p><span class="label">File Date:</span> {file_date}</p>
           <p><span class="label">IRDW_LOAD_DATE:</span> {irdw_load_date}</p>
         </div>"""
 
@@ -441,7 +442,7 @@ if __name__ == '__main__':
     s = '' if num_inserted == 1 else 's'
     msg = f'{num_inserted:6,} Requirement Block{s} INSERTED'
     print(msg)
-    front_matter += f'<p>{msg}</p>'
+    front_matter += f'<p">{msg}</p>'
 
     s = '' if num_updated == 1 else 's'
     msg = f'{num_updated:6,} Requirement Block{s} UPDATED'
@@ -499,6 +500,14 @@ if __name__ == '__main__':
   .warning p {
     padding-left: 1em;
   }
+  .hr {
+    border-top: 2px solid black;
+    max-width: 45em;
+  }
+  .mono {
+    white-space: pre;
+    font-family: monospace;
+  }
   </style>
   """ + front_matter
   # mk_term_info manages OAREDA’s dgw_ir_active_requirements.csv files
@@ -510,13 +519,22 @@ if __name__ == '__main__':
       <p>mk_term_info.py FAILED!</p>
       <p>{result.stderr}</p>
     </div>
-    <p><strong>No Unparsed Blocks Report</strong></p>
+    <p><strong>No Term_Info Report</strong></p>
     """
   else:
     paragraphs = result.stdout.split(b'\n')
-    mk_term_report = '\n'.join([f'<p><strong>{str(p, encoding="utf-8")}</strong></p'
-                               for p in paragraphs])
-    parse_report += f'<p><strong>{mk_term_report}</strong></p>'
+    term_report = []
+    for paragraph in paragraphs:
+      if paragraph := str(paragraph, encoding='utf-8').strip():
+        try:
+          label, date = paragraph.split(':')
+          term_report.append(f'<p><span class="label">{label}:</span> {date.strip()}</p>')
+        except ValueError:
+          # No label:date
+          term_report.append(f'<p class="mono">{paragraph}</p>')
+
+    term_report = '\n'.join(term_report)
+    parse_report += f'<div class="hr"><p class="label">MK_TERM_INFO</p>{term_report}</div>'
 
     # Generate table of un-parsed current blocks, giving most-recent active term.
     with psycopg.connect('dbname=cuny_curriculum') as conn:

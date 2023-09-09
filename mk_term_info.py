@@ -55,20 +55,27 @@ if __name__ == '__main__':
 
   if latest_download is None:
     # Fatal
-    exit('mk_term_info: no dgw_ir_active_requirements file available.')
+    exit('No dgw_ir_active_requirements file available.')
 
-  print(f'mk_term_info: Using {latest_download.name}')
+  print(f'DGW_IR_ACTIVE_REQUIREMENTS  File Date:      {latest_download.stem[-10:]}')
   csv_reader = csv.reader(latest_download.open('r', newline=''), delimiter='|')
 
   # The OAREDA list includes the enrollment for each requirement block for each active term,
   # where an active term is one in which current student(s) at the institution are actually
   # enrolled in a program. Here, that is converted into a timeline of term-enrollment pairs.
   active_blocks = defaultdict(list)
+  irdw_load_date = None
   for line in csv_reader:
     if csv_reader.line_num == 1:
       Row = namedtuple('Row', ' '.join(col.lower().replace(' ', '_') for col in line))
     else:
       row = Row._make(line)
+      if irdw_load_date is None:
+        irdw_load_date = row.irdw_load_date
+        print(f'IRDW LOAD DATE:              {irdw_load_date}')
+      else:
+        assert irdw_load_date == irdw_load_date
+
       if re.findall(r'RA\d{6}', row.dap_req_id):
         term_info = {'active_term': int(row.dap_active_term.strip('U')),
                      'distinct_students': int(row.distinct_students)}
@@ -101,7 +108,7 @@ if __name__ == '__main__':
           else:
             num_set += 1
 
-    print(f'{len(active_blocks):,} active blocks')
-    print(f'{num_set:,} matching blocks found')
+    print(f'{len(active_blocks):9,} active blocks')
+    print(f'{num_set:9,} matching blocks found')
     if num_set < len(active_blocks):
-      print(f'Missing blocks logged to Logs/{log_pathname.name}')
+      print(f'{len(active_blocks) - num_set:9,} missing blocks logged to Logs/{log_pathname.name}')
