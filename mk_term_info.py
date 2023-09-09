@@ -72,7 +72,7 @@ if __name__ == '__main__':
       row = Row._make(line)
       if irdw_load_date is None:
         irdw_load_date = row.irdw_load_date
-        print(f'IRDW LOAD DATE:              {irdw_load_date}')
+        print(f'IRDW_LOAD_DATE: {irdw_load_date}')
       else:
         assert irdw_load_date == irdw_load_date
 
