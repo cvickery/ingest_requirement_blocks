@@ -529,7 +529,7 @@ if __name__ == '__main__':
         try:
           label, date = paragraph.split(':')
           filename, date_label = label.split(maxsplit=1)
-          term_report.append(f'<p><span class="label">{date}</span></p> '
+          term_report.append(f'<p><span class="label">{filename}</span></p> '
                              f'<p><span class="label">{date_label}:</span>{date.strip()}</p>')
         except ValueError:
           # No label:date
