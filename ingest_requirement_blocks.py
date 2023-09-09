@@ -476,7 +476,7 @@ if __name__ == '__main__':
     }
   .label {
     display: inline-block;
-    width: 15em;
+    width: 20em;
     font-weight: bold;
   }
   table {
@@ -502,7 +502,7 @@ if __name__ == '__main__':
   }
   .hr {
     border-top: 2px solid black;
-    max-width: 60em;
+    max-width: 45em;
   }
   .mono {
     white-space: pre;
