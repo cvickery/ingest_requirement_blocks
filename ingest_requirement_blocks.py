@@ -502,7 +502,7 @@ if __name__ == '__main__':
   }
   .hr {
     border-top: 2px solid black;
-    max-width: 45em;
+    max-width: 60em;
   }
   .mono {
     white-space: pre;
