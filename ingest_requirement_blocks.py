@@ -528,7 +528,7 @@ if __name__ == '__main__':
       if paragraph := str(paragraph, encoding='utf-8').strip():
         try:
           filename, date_info = paragraph.split(':')
-          date_label, date = label.split(maxsplit=1)
+          date_label, date = filename.split(maxsplit=1)
           term_report.append(f'<p><span class="label">{filename}</span></p> '
                              f'<p><span class="label">{date_label}:</span>{date.strip()}</p>')
         except ValueError:
