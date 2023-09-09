@@ -527,13 +527,17 @@ if __name__ == '__main__':
     for paragraph in paragraphs:
       if paragraph := str(paragraph, encoding='utf-8').strip():
         try:
-          label, date = paragraph.split(':')
-          filename, date_label = label.split(maxsplit=1)
+          filename, date_info = paragraph.split(':')
+          date_label, date = label.split(maxsplit=1)
           term_report.append(f'<p><span class="label">{filename}</span></p> '
                              f'<p><span class="label">{date_label}:</span>{date.strip()}</p>')
         except ValueError:
-          # No label:date
-          term_report.append(f'<p class="mono">{paragraph}</p>')
+          # No filename:date_info -- try date_label:date
+          if paragraph.lower().startswith(file_date):
+            date_label, date = paragraph.split(maxsplit=1)
+            term_report.append(f'<p><span class="label">{date_label}:</span>{date.strip()}</p>')
+          else:
+            term_report.append(f'<p class="mono">{paragraph}</p>')
 
     term_report = '\n'.join(term_report)
     parse_report += f'<div class="hr"><p class="label">MK_TERM_INFO</p>{term_report}</div>'
