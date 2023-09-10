@@ -502,6 +502,7 @@ if __name__ == '__main__':
   }
   .hr {
     border-top: 2px solid black;
+    padding-top: 0.5em;
     max-width: 45em;
   }
   .mono {
