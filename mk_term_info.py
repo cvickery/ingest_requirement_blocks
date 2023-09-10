@@ -57,7 +57,7 @@ if __name__ == '__main__':
     # Fatal
     exit('No dgw_ir_active_requirements file available.')
 
-  print(f'DGW_IR_ACTIVE_REQUIREMENTS  File Date:      {latest_download.stem[-10:]}')
+  print(f'DGW_IR_ACTIVE_REQUIREMENTS: {latest_download.stem[-10:]}')
   csv_reader = csv.reader(latest_download.open('r', newline=''), delimiter='|')
 
   # The OAREDA list includes the enrollment for each requirement block for each active term,
