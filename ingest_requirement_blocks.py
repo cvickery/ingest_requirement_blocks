@@ -538,6 +538,14 @@ if __name__ == '__main__':
     parse_report += f'<div class="hr"><p class="label">MK_TERM_INFO</p>{term_report}</div>'
 
     # Generate table of un-parsed current blocks, giving most-recent active term.
+    # Alert (bool) currently-active un-parsed blocks
+    today = datetime.date.today()
+    reports_dir = Path('./ingestion_reports')
+    if not reports_dir.is_dir():
+      reports_dir.mkdir()
+    report_file = Path(reports_dir, f'{today}.csv').open('w')
+    writer = csv.writer(report_file)
+    writer.writerow(['Institution', 'Requirement ID', 'Latest Term', 'This Year'])
     with psycopg.connect('dbname=cuny_curriculum') as conn:
       with conn.cursor(row_factory=namedtuple_row) as cursor:
         cursor.execute("""
@@ -548,7 +556,7 @@ if __name__ == '__main__':
            and period_stop ~* '^9'
         order by institution, requirement_id
         """)
-        this_year = (datetime.date.today().year - 1900) * 10
+        this_year = (today.year - 1900) * 10
         num_warnings = 0
         num_rows = cursor.rowcount
         table_body = ''
@@ -557,25 +565,17 @@ if __name__ == '__main__':
           value = sorted(value, key=lambda d: d['active_term'])
           latest_term = value[-1]['active_term']
           class_attribute = ''
-          if latest_term >= this_year:
-            class_attribute = ' class="warning"'
+          alert = latest_term >= this_year
+          if alert:
             num_warnings += 1
-          table_body += f"""
-          <tr{class_attribute}>
-            <td>{row.institution}</td>
-            <td>{row.requirement_id}</td>
-            <td>{latest_term}</td>
-          </tr>
-          """
+          writer.writerow([row.institution, row.requirement_id, latest_term, alert])
+    report_file.close()
+
     s = '' if num_warnings == 1 else 's'
-    parse_report += f'<p class="hr"><strong>{num_rows} Unparsed Blocks</strong></p>'
+    parse_report += (f'<p class="hr"><strong>{num_rows} Unparsed-block IDs written to '
+                     f'{report_file.name}</strong></p>')
     if num_warnings:
       parse_report += f'<div class="warning"><p>{num_warnings} “this year” Alert{s}</p></div>'
-    parse_report += f"""
-    <table><tr><th>Institution</th><th>Requirement ID</th><th>Latest Term</th></tr>
-    {table_body}
-    </table>
-    """
 
   print('Email mapping files status report')
   # No longer sending csv files to Lehman. They get the tables directly from the db.
