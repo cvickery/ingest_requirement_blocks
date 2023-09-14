@@ -2,10 +2,12 @@
 """Copy the latest-avalable versions of the two query files to latest_queries/ .
 
 Run this on babbage (or trexlabs) for use as a data source on a development system.
+Use ./sync to update the archives folder on the development system with the contents
+of latest_queries/ where this script was run.
 """
 
+import shutil
 from pathlib import Path
-from shutil import copy
 
 if __name__ == '__main__':
   latest_dir = Path('./latest_queries')
@@ -18,5 +20,11 @@ if __name__ == '__main__':
   req_blocks = archive_dir.glob('dgw_dap_req_block*')
   active_blocks = archive_dir.glob('dgw_ir_active_requirements*')
 
-  print(list(req_blocks)[-1])
-  print(list(active_blocks)[-1])
+  latest_req_block = sorted(list(req_blocks))[-1]
+  latest_active_block = sorted(list(active_blocks))[-1]
+
+  for cruft_file in latest_dir.glob('*'):
+    cruft_file.unlink()
+
+  shutil.copy2(latest_req_block, latest_dir)
+  shutil.copy2(latest_active_block, latest_dir)

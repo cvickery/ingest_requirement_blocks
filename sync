@@ -1,9 +1,7 @@
 #! /usr/local/bin/bash
 
-# This will sync the entire archives dir on babbage, which you don’t really need.
-# Instead, just get the latest available pair of files using transmit.
-echo You probably don’t want to do this.
-exit 1
 
-rsync -vte ssh 149.4.44.244:/Users/vickery/Projects/ingest_requirement_blocks/archives/* \
-                            ./archives
+rsync -vte ssh 149.4.44.244:/Users/vickery/Projects/ingest_requirement_blocks/latest_queries/* \
+                            ./latest_queries
+
+mv latest_queries/* archives/
