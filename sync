@@ -5,3 +5,9 @@ rsync -vte ssh 149.4.44.244:/Users/vickery/Projects/ingest_requirement_blocks/la
                             ./latest_queries
 
 mv latest_queries/* archives/
+./ingest_requirement_blocks.py
+(
+  cd ~/Projects/dgw_processor
+  ./parse_active.py -c
+  ./parse_active.py -t
+)
