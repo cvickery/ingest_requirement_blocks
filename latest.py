@@ -1,7 +1,7 @@
 #! /usr/local/bin/python3
 """Copy the latest-avalable versions of the two query files to latest_queries/ .
 
-Run this on babbage (or trexlabs) for use as a data source on a development system.
+Run this on babbage (or trexlabs) for use as a data source to a development system.
 Use ./sync to update the archives folder on the development system with the contents
 of latest_queries/ where this script was run.
 """
