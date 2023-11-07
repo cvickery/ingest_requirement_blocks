@@ -9,5 +9,5 @@ mv latest_queries/* archives/
 (
   cd ~/Projects/dgw_processor
   ./parse_active.py -c
-  ./parse_active.py -t
+  ./parse_active.py -tl 3600
 )
