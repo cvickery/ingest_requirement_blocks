@@ -1,5 +1,7 @@
 #! /usr/local/bin/bash
 
+# Launchctl on Macintosh development systems runs this every morning, half an hour after
+# ingest_requirement_blocks is run.
 
 rsync -vte ssh 149.4.44.244:/Users/vickery/Projects/ingest_requirement_blocks/latest_queries/* \
                             ./latest_queries
