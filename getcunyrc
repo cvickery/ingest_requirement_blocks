@@ -1,4 +1,0 @@
-set sftp:connect-program "ssh -a -x -o KexAlgorithms=diffie-hellman-group14-sha256"
-open --user CVickery --env-password sftp://st-edge.cuny.edu
-cd ODI-Queens/DegreeWorks
-mget -O /Users/vickery/Projects/cuny_programs/dgw_requirement_blocks/downloads *dap_req_block* *active_requirements*

@@ -23,8 +23,10 @@ if __name__ == '__main__':
   latest_req_block = sorted(list(req_blocks))[-1]
   latest_active_block = sorted(list(active_blocks))[-1]
 
+  # Get rid of whatever was previously the latest_queries dir
   for cruft_file in latest_dir.glob('*'):
     cruft_file.unlink()
 
+  # Copy the most recent two files to the latest_queries dir
   shutil.copy2(latest_req_block, latest_dir)
   shutil.copy2(latest_active_block, latest_dir)
