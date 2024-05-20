@@ -1,13 +1,12 @@
 #! /usr/local/bin/bash
 
-# Launchctl on Macintosh development systems runs this every morning, half an hour after
-# ingest_requirement_blocks is run.
+# Run this after getting updated query files from Lehman
+[[ `hostname` = lehman ]] && return
 
-rsync -vte ssh 149.4.44.244:/Users/vickery/Projects/ingest_requirement_blocks/latest_queries/* \
-                            ./latest_queries
-
-mv latest_queries/* archives/
+# Move most recent from downloads to latest, and process them
 ./ingest_requirement_blocks.py
+
+# Update parsing
 (
   cd ~/Projects/dgw_processor
   ./parse_active.py -c
