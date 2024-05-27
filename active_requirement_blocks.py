@@ -4,7 +4,6 @@
 """
 import csv
 import psycopg
-import sys
 
 from collections import namedtuple, defaultdict
 from psycopg.rows import namedtuple_row
@@ -46,7 +45,7 @@ with open('archives/dgw_ir_active_requirements.csv') as csv_file:
         block_types[block_type] += 1
         period_stops[period_stop] += 1
         active_terms[row.dap_active_term] += 1
-      except KeyError as err:
+      except KeyError:
         not_found += 1
 
 print(f'Found:         {num_found:7,}')

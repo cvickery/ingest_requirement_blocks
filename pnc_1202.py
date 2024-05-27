@@ -8,11 +8,8 @@ import sys
 import csv
 import argparse
 from pathlib import Path
-from datetime import datetime, timezone
-from collections import namedtuple
 import codecs
 
-import pgconnection
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-d', '--debug', action='store_true', default=False)

@@ -27,9 +27,7 @@ Terminology:
 import csv
 import datetime
 import json
-import os
 import psycopg
-import sys
 import time
 
 from checksize import check_size

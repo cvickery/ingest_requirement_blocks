@@ -2,7 +2,6 @@
 """Function to generate HTML details element from requirement_text."""
 
 import psycopg
-import sys
 
 from argparse import ArgumentParser
 from dgw_preprocessor import dgw_filter

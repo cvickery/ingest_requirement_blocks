@@ -5,7 +5,6 @@ import csv
 import json
 import psycopg
 import re
-import sys
 
 from checksize import check_size
 from collections import defaultdict, namedtuple

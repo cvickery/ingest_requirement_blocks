@@ -3,7 +3,6 @@
 
 import csv
 import datetime
-import sys
 from pathlib import Path
 
 csv.field_size_limit(1024 * 1024 * 1024)
