@@ -1,8 +1,8 @@
 #! /usr/local/bin/python3
-"""Insert or update the cuny_programs.requirement_blocks table from a cuny-wide extract.
+"""Update the cuny_programs.requirement_blocks table from a cuny-wide extract.
 
 Alters the following fields in the requirement_blocks table:
-  If the a dap_req_block row is new, and entire new row is added to requirement_blocks.
+  If a dap_req_block row is new, an entire new row is added to requirement_blocks.
   Otherwise, the dap_req_block row is checked for metadata and/or requirement_text changes; log
   changes to the history directory.
   For each new or changed block:
@@ -55,20 +55,13 @@ import psycopg
 import re
 import shutil
 import sys
-import tempfile
 import time
 
-from checksize import check_size
 from collections import namedtuple
-from copy import copy, deepcopy
 from pathlib import Path
 from psycopg.rows import namedtuple_row
-from psycopg.types.json import Jsonb
 from sendemail import send_message
-from status_report import status_report
 from subprocess import run
-from types import SimpleNamespace
-from xml.etree.ElementTree import parse
 
 from scribe_to_html import to_html
 
@@ -138,26 +131,6 @@ def csv_generator(file):
           sys.exit(f'{type_error}: |{line}|')
 
 
-# xml_generator()
-# -------------------------------------------------------------------------------------------------
-def xml_generator(file):
-  """Generate rows from an xml export of OIRA’s DAP_REQ_BLOCK table."""
-  try:
-    tree = parse(file)
-  except xml.etree.ElementTree.ParseError as pe:
-    sys.exit(pe)
-
-  Row = None
-  for record in tree.findall("ROW"):
-    cols = record.findall('COLUMN')
-    line = [col.text for col in cols]
-    if Row is None:
-      # array = [col.attrib['NAME'].lower() for col in cols]
-      Row = namedtuple('Row', [col.attrib['NAME'].lower() for col in cols])
-    row = Row._make(line)
-    yield row
-
-
 # __main__()
 # -------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
@@ -174,10 +147,13 @@ if __name__ == '__main__':
   args = parser.parse_args()
 
   hostname = os.uname().nodename
-  is_cuny = hostname.lower().endswith('cuny.edu')
+  is_trexlabs = hostname.lower().endswith('lehman.edu')
 
   home_dir = Path.home()
+  downloads_dir = Path(home_dir, 'Projects/ingest_requirement_blocks/downloads')
   archives_dir = Path(home_dir, 'Projects/ingest_requirement_blocks/archives')
+  latest_dir = Path('Projects/ingest_requirement_blocks/latest_queries')
+  assert downloads_dir.is_dir() and archives_dir.is_dir() and latest_dir.is_dir()
 
   # What, where, and when
   www = f'This is {Path(sys.argv[0]).name} at {hostname} on {datetime.date.today()}'
@@ -187,24 +163,56 @@ if __name__ == '__main__':
 
   # front_matter is text that will go at the beginning of email reports.
   front_matter = f'<p><strong>{www}</strong></p>'
-  # Download current dgw_dap_req_block.csv from Tumbleweed, if available.
-  if is_cuny:
-    if not args.skip_downloads:
-      lftpwd = Path(home_dir, '.lftpwd').open().readline().strip()
-      commands = '\n'.join(['cd ODI-Queens/DegreeWorks',
-                            'mget -O /Users/vickery/Projects/ingest_requirement_blocks/'
-                            'downloads *dap_req_block* *active_requirements*'])
-      tumble_result = run(['/usr/local/bin/lftp',
-                           '--user', 'CVickery',
-                           '--pass', lftpwd,
-                           'sftp://st-edge.cuny.edu'],
-                          input=commands, text=True, stdout=sys.stdout)
-      if tumble_result.returncode != 0:
-        front_matter += '<div class="warning"><p>Tumbleweed download FAILED.</p></div>'
-        print('  Tumbleweed download FAILED.')
+
+  # If at T-Rex Labs, move queries from downloads/ to archive, and newest pair from archives/ to
+  # latest/
+  if is_trexlabs:
+    # Move date-stamped downloads/ to archives/
+    for file in downloads_dir.iterdir():
+      if file.is_file() and file.name.lower() in ['dgw_dap_req_block.csv',
+                                                  'dgw_ir_active_requirements.csv']:
+        # Get the file's creation (download) date for archival purposes.
+        creation_date = datetime.datetime.fromtimestamp(file.stat().st_ctime)
+        archives_name = file.name.lower().replace('.csv', creation_date) + '.csv'
+
+        # Move from downloads/ to archives/ and rename
+        shutil.move(str(file), archives_dir / archives_name)
+        front_matter += f'<p>Moved, downloads/{file.name} to archives/</p>'
+
+      else:
+        file.unlink()
+        front_matter += f'<p>Deleted stray file, downloads/{file.name}</p>'
+
+    # Delete whatever is currently in latest/
+    for cruft_file in latest_dir.glob('*'):
+      cruft_file.unlink()
+
+    # Copy latest dap_req_block and dgw_ir_active_requirements from archives/ to latest/
+    all_requirement_blocks = archives_dir.glob('dgw_dap_req_block*')
+    all_actives_blocks = archives_dir.glob('dgw_ir_active_requirements*')
+    latest_requirement_block = sorted(list(all_requirement_blocks))[-1]
+    latest_actives_block = sorted(list(all_actives_blocks))[-1]
+    shutil.copy2(latest_requirement_block, latest_dir)
+    shutil.copy2(latest_actives_block, latest_dir)
+
   else:
-    front_matter += f'<p><strong>Tumbleweed not available from {hostname}</strong></p>'
-    print(f'Tumbleweed not available from {hostname}')
+    # On the development system and on babbage.dyndns-home.com, pull_from_lehman has already
+    # populated latest/*. Copy them to archives/ “just in case”
+    for latest_file in latest_dir.glob('*'):
+      if latest_file.name.startswith('dgw_dap'):
+        latest_requirement_block = latest_file
+      elif latest_file.name.startswith('dgw_ir'):
+        latest_actives_block = latest_file
+      else:
+        front_matter += f'<p>Deleted unexpected file: latest/{latest_file.name}</p>'
+        shutil.unlink(latest_file)
+        latest_file = None
+
+      if latest_file:
+        shutil.copy2(latest_file, archives_dir)
+        front_matter += f'<p>Copied {latest_file.name} to archives/</p>'
+
+  # Now update the requirement_blocks table from the latest requirements block
 
   db_cols = ['institution', 'requirement_id', 'block_type', 'block_value', 'title', 'period_start',
              'period_stop', 'school', 'degree', 'college', 'major1', 'major2', 'concentration',
@@ -235,13 +243,8 @@ if __name__ == '__main__':
   file = latest
   file_date = str(datetime.date.fromtimestamp(int(file.stat().st_mtime)))
 
-  # Obsolete support for XML format. Only CSV files actually occur now.
-  if file.suffix.lower() == '.xml':
-    generator = xml_generator
-  elif file.suffix.lower() == '.csv':
-    generator = csv_generator
-  else:
-    sys.exit(f'Unsupported file type: {file.suffix}')
+  # There used to be an XML generator, but it’s no longer used.
+  generator = csv_generator
 
   start_time = int(time.time())
   empty_parse_tree = json.dumps({})
@@ -308,8 +311,8 @@ if __name__ == '__main__':
         if cursor.rowcount == 0:
           action.do_insert = True
         else:
-          assert cursor.rowcount == 1, (f'Error: {cursor.rowcount} rows for {institution} '
-                                        f'{requirement_id}')
+          assert cursor.rowcount == 1, (f'Error: {cursor.rowcount} rows for {new_row.institution} '
+                                        f'{new_row.requirement_id}')
           db_row = cursor.fetchone()
 
           # Record history of changes to the Scribe block itself
@@ -582,14 +585,8 @@ if __name__ == '__main__':
   # html_msg = status_report(front_matter)
   # html_msg += parse_report
   html_msg = parse_report
-  if is_cuny and not args.testing:
-    subject = 'Requirement Block Ingestion Report'
-    to_list = [{'name': 'David Ling', 'email': 'David.Ling@lehman.cuny.edu'},
-               {'name': 'Christopher Vickery', 'email': 'Christopher.Vickery@qc.cuny.edu'},
-               ]
-  else:
-    subject = f'Requirement block ingestion report from {hostname}'
-    to_list = [{'name': 'Christopher Vickery', 'email': 'Christopher.Vickery@qc.cuny.edu'}]
+  subject = f'Requirement block ingestion report from {hostname}'
+  to_list = [{'name': 'Christopher Vickery', 'email': 'Christopher.Vickery@qc.cuny.edu'}]
   sender = {'name': 'T-Rex Labs', 'email': 'christopher.vickery@qc.cuny.edu'}
   send_message(to_list, sender, subject, html_msg)
 

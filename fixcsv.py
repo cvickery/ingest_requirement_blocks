@@ -23,6 +23,7 @@ quotechar = args.quotechar
 
 
 in_field = False
+last_char = None
 
 with sys.stdin as infile:
   with sys.stdout as outfile:
