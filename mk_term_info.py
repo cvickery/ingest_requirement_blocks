@@ -6,7 +6,6 @@ import json
 import psycopg
 import re
 
-from checksize import check_size
 from collections import defaultdict, namedtuple
 from datetime import date
 from pathlib import Path
@@ -17,47 +16,20 @@ if __name__ == '__main__':
 
   # Verify directory locations
   home_dir = Path.home()
-  archives_dir = Path(home_dir, 'Projects/ingest_requirement_blocks/archives/')
-  downloads_dir = Path(home_dir, 'Projects/ingest_requirement_blocks/downloads/')
+  latest_dir = Path(home_dir, 'Projects/ingest_requirement_blocks/latest_queries/')
   logs_dir = Path(home_dir, 'Projects/ingest_requirement_blocks/Logs/')
   assert home_dir.is_dir(), 'Home dir not recognized'
-  assert archives_dir.is_dir(), 'Archives dir not found'
-  assert downloads_dir.is_dir(), 'Downloads dir not found'
+  assert latest_dir.is_dir(), 'Latest queries dir not found'
   assert logs_dir.is_dir(), 'Logs dir not found'
 
-  # Find the latest archived OAREDA file for size-consistency check and for use if there’s nothing
-  # available in downloads or if the size-consistency check fails.
-
-  latest_download = None
-  for download in archives_dir.glob('*active*'):
-    if latest_download is None or download.stat().st_mtime > latest_download.stat().st_mtime:
-      latest_download = download
-
-  # Check downloads folder
-  downloaded = Path(downloads_dir, 'dgw_ir_active_requirements.csv')
-  if downloaded.is_file():
-
-    file_date = date.fromtimestamp(downloaded.stat().st_mtime)
-    new_name = downloaded.name.replace('.csv', f'_{file_date}.csv')
-
-    # Check new file’s size is within 10% of previous file.
-    if latest_download:
-      size_ok = check_size(latest_download.stat().st_size, downloaded.stat().st_size, 0.10)
-      if not size_ok:
-        print(f'{downloaded} size is not within 10% of {latest_download} (ignored)')
-    else:
-      size_ok = True
-
-    if size_ok:
-      # download is within tolerance
-      latest_download = downloaded.rename(Path(archives_dir, new_name))
-
-  if latest_download is None:
+  # Get the current query from the latest_queries dir
+  latest_query = Path(latest_dir, 'dgw_ir_active_requirements.csv')
+  if not (latest_query and latest_query.is_file()):
     # Fatal
     exit('No dgw_ir_active_requirements file available.')
 
-  print(f'DGW_IR_ACTIVE_REQUIREMENTS: {latest_download.stem[-10:]}')
-  csv_reader = csv.reader(latest_download.open('r', newline=''), delimiter='|')
+  print(f'DGW_IR_ACTIVE_REQUIREMENTS: {latest_query.name}')
+  csv_reader = csv.reader(latest_query.open('r', newline=''), delimiter='|')
 
   # The OAREDA list includes the enrollment for each requirement block for each active term,
   # where an active term is one in which current student(s) at the institution are actually

@@ -1,4 +1,7 @@
 #! /usr/local/bin/python3
+#
+# NO LONGER USED: FOLDED INTO ingest_requirement_blocks.py
+#
 """Copy the latest-avalable versions of the two query files to latest_queries/ .
 
 Run this on babbage (or trexlabs) for use as a data source to a development system.
