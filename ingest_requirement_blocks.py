@@ -214,6 +214,8 @@ if __name__ == '__main__':
 
   # Now update the requirement_blocks table from the latest requirements block
 
+  # These are dap_req_block columns with OAREDA additions, plus requirement_html that gets added
+  # here, but not parse_tree and dgw_seconds, which will be set by the parser.
   db_cols = ['institution', 'requirement_id', 'block_type', 'block_value', 'title', 'period_start',
              'period_stop', 'school', 'degree', 'college', 'major1', 'major2', 'concentration',
              'minor', 'liberal_learning', 'specialization', 'program', 'parse_status', 'parse_date',
@@ -296,6 +298,8 @@ if __name__ == '__main__':
 
         requirement_text = decruft(new_row.requirement_text)
         requirement_html = to_html(row.institution, row.requirement_id, requirement_text)
+        text_is_changed = False  # Don’t know yet
+        current_parse_tree = None
 
         # When did the institution last parse the block?
         parse_date = datetime.date.fromisoformat(new_row.parse_date)
@@ -303,24 +307,32 @@ if __name__ == '__main__':
         # Check for changes in the data and metadata items that we use.
         changes_str = ''
         cursor.execute(f"""
-        select block_type, block_value, period_start, period_stop, parse_date, requirement_text
+        select block_type, block_value, period_start, period_stop, parse_date, requirement_text,
+               parse_tree, dgw_seconds
           from requirement_blocks
          where institution = '{new_row.institution}'
            and requirement_id = '{new_row.requirement_id}'
         """)
         if cursor.rowcount == 0:
           action.do_insert = True
+
         else:
           assert cursor.rowcount == 1, (f'Error: {cursor.rowcount} rows for {new_row.institution} '
                                         f'{new_row.requirement_id}')
           db_row = cursor.fetchone()
+          current_dgw_parse_tree = db_row.parse_tree  # Want to re-use these if text hasn’t changed
+          current_dgw_parse_date = db_row.parse_date
+          current_dgw_parse_secs = db_row.dgw_seconds
 
           # Record history of changes to the Scribe block itself
           days_ago = f'{(parse_date - db_row.parse_date).days}'.zfill(3)
           s = '' if days_ago == 1 else 's'
           diff_msg = f'{days_ago} day{s} since previous parse date'
 
-          if db_row.requirement_text != requirement_text:
+          if text_is_changed := db_row.requirement_text != requirement_text:
+            current_dgw_parse_tree = None
+            current_dgw_parse_date = None
+            current_dgw_parse_secs = None
             db_lines = db_row.requirement_text.split('\n')
             new_lines = requirement_text.split('\n')
             prev_len = len(db_lines)
@@ -339,7 +351,7 @@ if __name__ == '__main__':
                                                 fromfile='previous', tofile='changed', n=0)
               _diff_file.writelines(diff_lines)
 
-          # Log metadata changes and trigger update
+          # Log metadata changes and trigger block update
           for item in ['block_type', 'block_value', 'period_start', 'period_stop', 'parse_date']:
             if item == 'parse_date':
               old_value = db_row.parse_date
@@ -403,9 +415,9 @@ if __name__ == '__main__':
                          'lock_version': new_row.lock_version,
                          'requirement_text': requirement_text,
                          'requirement_html': requirement_html,
-                         'parse_tree': None,
-                         'dgw_seconds': None,
-                         'dgw_parse_date': None,
+                         'parse_tree': current_dgw_parse_tree,
+                         'dgw_parse_date': current_dgw_parse_date,
+                         'dgw_seconds': current_dgw_parse_secs,
                          'irdw_load_date': irdw_load_date,
                          }
           set_args = ','.join([f'{key}=%s' for key in update_dict.keys()])
