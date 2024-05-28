@@ -152,7 +152,7 @@ if __name__ == '__main__':
   home_dir = Path.home()
   downloads_dir = Path(home_dir, 'Projects/ingest_requirement_blocks/downloads')
   archives_dir = Path(home_dir, 'Projects/ingest_requirement_blocks/archives')
-  latest_dir = Path('Projects/ingest_requirement_blocks/latest_queries')
+  latest_dir = Path(home_dir, 'Projects/ingest_requirement_blocks/latest_queries')
   assert downloads_dir.is_dir() and archives_dir.is_dir() and latest_dir.is_dir()
 
   # What, where, and when
@@ -436,7 +436,7 @@ if __name__ == '__main__':
           <p><span class="label">IRDW_LOAD_DATE:</span> {irdw_load_date}</p>
         </div>"""
 
-  if num_updated + num_inserted == 0:
+  if none_changed := (num_updated + num_inserted == 0):
     # Make this easy to see in the email report to me
     print('\nNO NEW OR UPDATED BLOCKS FOUND\n')
     # and in the email report to Lehman
@@ -457,17 +457,18 @@ if __name__ == '__main__':
     h, m = divmod(m, 60)
     print(f'  {int(h):02}:{int(m):02}:{round(s):02}')
 
-  # Regenerate the requirement_html column of requirement_blocks table
-  print('Regenerate requirement_blocks.requirement_html')
-  substep_start = time.time()
-  run_regen = ['./regenerate_html.py']
-  if args.progress:
-    run_regen.append('--progress')
-  run(run_regen, stdout=sys.stdout, stderr=sys.stdout)
-  if args.timing:
-    m, s = divmod(int(round(time.time() - substep_start)), 60)
-    h, m = divmod(m, 60)
-    print(f'  {int(h):02}:{int(m):02}:{round(s):02}')
+  # Regenerate the requirement_html column of requirement_blocks table, if there were any changes
+  if not none_changed:
+    print('Regenerate requirement_blocks.requirement_html')
+    substep_start = time.time()
+    run_regen = ['./regenerate_html.py']
+    if args.progress:
+      run_regen.append('--progress')
+    run(run_regen, stdout=sys.stdout, stderr=sys.stdout)
+    if args.timing:
+      m, s = divmod(int(round(time.time() - substep_start)), 60)
+      h, m = divmod(m, 60)
+      print(f'  {int(h):02}:{int(m):02}:{round(s):02}')
 
   print('Populate requirement_blocks.term_info')
 

@@ -23,7 +23,7 @@ if __name__ == '__main__':
   assert logs_dir.is_dir(), 'Logs dir not found'
 
   # Get the current query from the latest_queries dir
-  latest_query = Path(latest_dir, 'dgw_ir_active_requirements.csv')
+  latest_query = next(iter(latest_dir.glob('dgw_ir_*')))
   if not (latest_query and latest_query.is_file()):
     # Fatal
     exit('No dgw_ir_active_requirements file available.')
