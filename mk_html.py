@@ -10,10 +10,9 @@ from psycopg.rows import namedtuple_row
 from scribe_to_html import to_html
 
 if __name__ == '__main__':
-  """Fetch requirement_text for all rows; update requirement_html for each."""
+  """Generate requirement_html for all requirement_blocks where it’s missing."""
   start = time.time()
-  argparser = ArgumentParser('Update requirement_html for each requirement_text in '
-                             'requirement_blocks')
+  argparser = ArgumentParser('Generate missing requirement_html for requirement_blocks')
   argparser.add_argument('-p', '--progress', action='store_true',
                          help='enable progress messages')
   args = argparser.parse_args()
@@ -23,6 +22,7 @@ if __name__ == '__main__':
       with conn.cursor() as update_cursor:
         fetch_cursor.execute("""select institution, requirement_id, requirement_text
                                   from requirement_blocks
+                                  where requirement_html is null
                              """)
         num_blocks = fetch_cursor.rowcount
         counter = 0
