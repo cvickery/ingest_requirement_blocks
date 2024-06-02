@@ -157,7 +157,6 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('-p', '--progress', action='store_true')
   parser.add_argument('--log_unchanged', action='store_true')
-  parser.add_argument('--skip_downloads', action='store_true')
   parser.add_argument('--testing', action='store_true')
   parser.add_argument('--timing', action='store_true')
   parser.add_argument('--delimiter', default=',')
@@ -166,7 +165,6 @@ if __name__ == '__main__':
   args = parser.parse_args()
 
   hostname = os.uname().nodename
-  is_trexlabs = hostname.lower().endswith('lehman.edu')
 
   # Set up email params
   sysops = [{'name': 'Christopher Vickery', 'email': 'Christopher.Vickery@qc.cuny.edu'}]
@@ -189,43 +187,43 @@ if __name__ == '__main__':
   # front_matter is text that will go at the beginning of email reports.
   front_matter = f'<p><strong>{www}</strong></p>'
 
-  # If at T-Rex Labs, move queries from downloads/ to archive, and newest pair from archives/ to
+  # Move queries from downloads/ to archive, and newest pair from archives/ to
   # latest/
-  if is_trexlabs:
-    # Check both files are present. The two could be processed independently, but something’s
-    # not normal if one is missing.
-    download_dapreq = None
-    download_active = None
-    for file in downloads_dir.iterdir():
-      if file.is_file():
 
-        if file.name.lower() == 'dgw_dap_req_block.csv':
-          if download_dapreq:
-            # Should not occur: report to sysop for now
-            front_matter += '<p>Multiple dgw_dap_req_blocks. Keeping only most-recent</p>'
-            if file.stat().st_ctime <= download_dapreq.stat().st_ctime:
-              file.unlink()
-            else:
-              download_dapreq.unlink()
-              download_dapreq = file
+  # Check both files are present. The two could be processed independently, but something’s
+  # not normal if one is missing.
+  download_dapreq = None
+  download_active = None
+  for file in downloads_dir.iterdir():
+    if file.is_file():
+
+      if file.name.lower() == 'dgw_dap_req_block.csv':
+        if download_dapreq:
+          # Should not occur: report to sysop for now
+          front_matter += '<p>Multiple dgw_dap_req_blocks. Keeping only most-recent</p>'
+          if file.stat().st_ctime <= download_dapreq.stat().st_ctime:
+            file.unlink()
           else:
+            download_dapreq.unlink()
             download_dapreq = file
-
-        elif file.name.lower() ==  'dgw_ir_active_requirements.csv':
-          if download_active:
-            # Likewise
-            front_matter += '<p>Multiple dgw_ir_active_requirements. Keeping only most-recent</p>'
-            if file.stat().st_ctime <= download_active.stat().st_ctime:
-              file.unlink()
-            else:
-              download_active.unlink()
-              download_active = file
-          else:
-            download_active = file
-
         else:
-          front_matter += f'<p><strong>Deleted stray download: {file.name}</strong></p>'
-          file.unlink()
+          download_dapreq = file
+
+      elif file.name.lower() ==  'dgw_ir_active_requirements.csv':
+        if download_active:
+          # Likewise
+          front_matter += '<p>Multiple dgw_ir_active_requirements. Keeping only most-recent</p>'
+          if file.stat().st_ctime <= download_active.stat().st_ctime:
+            file.unlink()
+          else:
+            download_active.unlink()
+            download_active = file
+        else:
+          download_active = file
+
+      else:
+        front_matter += f'<p><strong>Deleted stray download: {file.name}</strong></p>'
+        file.unlink()
 
     # Continue?
     if not (download_dapreq and download_active):
