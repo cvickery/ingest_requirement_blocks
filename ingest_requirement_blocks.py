@@ -197,9 +197,14 @@ if __name__ == '__main__':
   for file in downloads_dir.iterdir():
     if file.is_file():
 
+      if args.progress:
+        print(f'downloads/{file}')
+
       if file.name.lower() == 'dgw_dap_req_block.csv':
         if download_dapreq:
           # Should not occur: report to sysop for now
+          if args.progress:
+            print('Multiple dgw_dap_req_blocks. Keeping only most-recent')
           front_matter += '<p>Multiple dgw_dap_req_blocks. Keeping only most-recent</p>'
           if file.stat().st_ctime <= download_dapreq.stat().st_ctime:
             file.unlink()
@@ -212,6 +217,8 @@ if __name__ == '__main__':
       elif file.name.lower() ==  'dgw_ir_active_requirements.csv':
         if download_active:
           # Likewise
+          if args.progress:
+            print('Multiple dgw_ir_active_requirements. Keeping only most-recent')
           front_matter += '<p>Multiple dgw_ir_active_requirements. Keeping only most-recent</p>'
           if file.stat().st_ctime <= download_active.stat().st_ctime:
             file.unlink()
@@ -222,11 +229,15 @@ if __name__ == '__main__':
           download_active = file
 
       else:
+        if args.progress:
+          print(f'Deleted stray download: {file.name}')
         front_matter += f'<p><strong>Deleted stray download: {file.name}</strong></p>'
         file.unlink()
 
     # Continue?
     if not (download_dapreq and download_active):
+      if args.progress:
+        print('Empty downloads directory. Nothing to do.')
       front_matter += '<p>Empty downloads directory. Nothing to do.</p>'
       send_message(sysops, sender, subject, front_matter)
       exit()
