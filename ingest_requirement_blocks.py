@@ -198,7 +198,7 @@ if __name__ == '__main__':
     if file.is_file():
 
       if args.progress:
-        print(f'downloads/{file}')
+        print(f'downloads/{file.name}')
 
       if file.name.lower() == 'dgw_dap_req_block.csv':
         if download_dapreq:
