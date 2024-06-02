@@ -194,7 +194,7 @@ if __name__ == '__main__':
   # not normal if one is missing.
   download_dapreq = None
   download_active = None
-  for file in downloads_dir.iterdir():
+  for file in downloads_dir.glob('*'):
     if file.is_file():
 
       if args.progress:
