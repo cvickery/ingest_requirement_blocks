@@ -1,19 +1,37 @@
 #! /usr/local/bin/python3
 """Update the cuny_programs.requirement_blocks table from a cuny-wide extract.
 
-Alters the following fields in the requirement_blocks table:
-  If a dap_req_block row is new, an entire new row is added to requirement_blocks.
+Preconditions
+  A separate process has obtained the latest CSV files from OAREDA, checked that their sizes are
+  consistent with the most-recent versions, and moved them into the downloads directory of this
+  project. At Lehman, this is done by the check_new_queries cron job. Elsewhere, the files are
+  (manually) pulled from Lehman.
+
+Check the downloads directory. If it doesn’t have both dap_req_block and active_requirements CSVs,
+there is nothing to do. (If there is just one, alert sysop.)
+  Archive both, and use them to replace whatever is in the latest_queries directory.
+
+Ingest the dgw_dap_req block.csv file
+  If a row is new, an entire new row is added to requirement_blocks.
   Otherwise, the dap_req_block row is checked for metadata and/or requirement_text changes; log
   changes to the history directory.
-  For each new or changed block:
-    Set the parse_tree, dgw_seconds, and dgw_timestamp values to Null.
+  For each new block and each block where the requirement_text field changed:
+    Set the parse_tree, dgw_seconds, dgw_timestamp, and requirement_html values to Null.
+    Re-/parsing can take a long time to run, so doing that is deferred to a separate job.
+      It may be better to include that in this job ... but not implemented yet.
 
-  Invoke mk_term_info.py to replace (or initialize) the term_info dict for all blocks from the
-  latest dgw_ir_active_requirements.csv file. Log the latest active term for missing blocks.
+Ingest the dgw_id_active_requirements.csv file
+  Invoke mk_term_info.py to replace (or initialize) the term_info dict for all current blocks.
+  Log the latest active term for missing blocks.
 
-  Invoke regenerate_html.py to replace (or initialize) the requirement_html field for all blocks.
+Invoke regenerate_html.py to generate missing requirement_html fields for all current blocks.
 
-  Create a list of unparsed blocks and their latest active terms, but do not parse them here.
+---------------------------------------------------------------------------------------------------
+It took some doing to get the dap_req_block files to transfer to the development system
+successfully, so some of the code in this module reflects developmental steps that may no longer
+actually be necessary.
+
+Other Notes:
 
   CUNY Institutions Not In DegreeWorks
   GRD01 | The Graduate Center
@@ -22,7 +40,7 @@ Alters the following fields in the requirement_blocks table:
   SOJ01 | Graduate School of Journalism
   SPH01 | School of Public Health
 
-  This is a map of DGW college codes to CF college codes
+  Map of OIRA DGW college codes to PeopleSoft college codes
   BB BAR01 | Baruch College
   BC BKL01 | Brooklyn College
   BM BMC01 | Borough of Manhattan CC
@@ -65,12 +83,13 @@ from subprocess import run
 
 from scribe_to_html import to_html
 
+# Deal with large CLOBS
 csv.field_size_limit(sys.maxsize)
 
+# Deal with incoming data-encoding issues
 trans_dict = dict()
 for c in range(14, 31):
   trans_dict[c] = None
-
 cruft_table = str.maketrans(trans_dict)
 
 
@@ -98,7 +117,7 @@ def decruft(block):
   return_block = return_block.replace('\t', ' ').replace("'", '’')
 
   # Remove all text following END. that needs/wants never to be seen, and which messes up parsing
-  # anyway.
+  # anyway. (The preprocessor does this again. No harm done.)
   return_block = re.sub(r'[Ee][Nn][Dd]\.(.|\n)*', 'END.\n', return_block)
 
   return return_block
@@ -149,6 +168,12 @@ if __name__ == '__main__':
   hostname = os.uname().nodename
   is_trexlabs = hostname.lower().endswith('lehman.edu')
 
+  # Set up email params
+  sysops = [{'name': 'Christopher Vickery', 'email': 'Christopher.Vickery@qc.cuny.edu'}]
+  subject = f'Requirement block ingestion report from {hostname}'
+  sender = {'name': 'T-Rex Labs', 'email': 'christopher.vickery@qc.cuny.edu'}
+
+  # Directories
   home_dir = Path.home()
   downloads_dir = Path(home_dir, 'Projects/ingest_requirement_blocks/downloads')
   archives_dir = Path(home_dir, 'Projects/ingest_requirement_blocks/archives')
@@ -167,21 +192,56 @@ if __name__ == '__main__':
   # If at T-Rex Labs, move queries from downloads/ to archive, and newest pair from archives/ to
   # latest/
   if is_trexlabs:
-    # Move date-stamped downloads/ to archives/
+    # Check both files are present. The two could be processed independently, but something’s
+    # not normal if one is missing.
+    download_dapreq = None
+    download_active = None
     for file in downloads_dir.iterdir():
-      if file.is_file() and file.name.lower() in ['dgw_dap_req_block.csv',
-                                                  'dgw_ir_active_requirements.csv']:
-        # Get the file's creation (download) date for archival purposes.
-        creation_date = datetime.datetime.fromtimestamp(file.stat().st_ctime)
-        archives_name = file.name.lower().replace('.csv', creation_date) + '.csv'
+      if file.is_file():
 
-        # Move from downloads/ to archives/ and rename
-        shutil.move(str(file), archives_dir / archives_name)
-        front_matter += f'<p>Moved, downloads/{file.name} to archives/</p>'
+        if file.name.lower() == 'dgw_dap_req_block.csv':
+          if download_dapreq:
+            # Should not occur: report to sysop for now
+            front_matter += '<p>Multiple dgw_dap_req_blocks. Keeping only most-recent</p>'
+            if file.stat().st_ctime <= download_dapreq.stat().st_ctime:
+              file.unlink()
+            else:
+              download_dapreq.unlink()
+              download_dapreq = file
+          else:
+            download_dapreq = file
 
-      else:
-        file.unlink()
-        front_matter += f'<p>Deleted stray file, downloads/{file.name}</p>'
+        elif file.name.lower() ==  'dgw_ir_active_requirements.csv':
+          if download_active:
+            # Likewise
+            front_matter += '<p>Multiple dgw_ir_active_requirements. Keeping only most-recent</p>'
+            if file.stat().st_ctime <= download_active.stat().st_ctime:
+              file.unlink()
+            else:
+              download_active.unlink()
+              download_active = file
+          else:
+            download_active = file
+
+        else:
+          front_matter += f'<p><strong>Deleted stray download: {file.name}</strong></p>'
+          file.unlink()
+
+    # Continue?
+    if not (download_dapreq and download_active):
+      front_matter += '<p>Empty downloads directory. Nothing to do.</p>'
+      send_message(sysops, sender, subject, front_matter)
+      exit()
+
+    # Move date-stamped downloads/ to archives/
+    for file in [download_dapreq, download_active]:
+      # Get the file's creation (download) date for archival purposes.
+      creation_date = datetime.datetime.fromtimestamp(file.stat().st_ctime)
+      archives_name = file.name.lower().replace('.csv', creation_date) + '.csv'
+
+      # Move from downloads/ to archives/ and rename
+      shutil.move(str(file), archives_dir / archives_name)
+      front_matter += f'<p>Moved, downloads/{file.name} to archives/</p>'
 
     # Delete whatever is currently in latest/
     for cruft_file in latest_dir.glob('*'):
@@ -190,19 +250,19 @@ if __name__ == '__main__':
     # Copy latest dap_req_block and dgw_ir_active_requirements from archives/ to latest/
     all_requirement_blocks = archives_dir.glob('dgw_dap_req_block*')
     all_actives_blocks = archives_dir.glob('dgw_ir_active_requirements*')
-    latest_requirement_block = sorted(list(all_requirement_blocks))[-1]
-    latest_actives_block = sorted(list(all_actives_blocks))[-1]
-    shutil.copy2(latest_requirement_block, latest_dir)
-    shutil.copy2(latest_actives_block, latest_dir)
+    requirement_block = sorted(list(all_requirement_blocks))[-1]
+    actives_block = sorted(list(all_actives_blocks))[-1]
+    shutil.copy2(requirement_block, latest_dir)
+    shutil.copy2(actives_block, latest_dir)
 
   else:
     # On the development system and on babbage.dyndns-home.com, pull_from_lehman has already
     # populated latest/*. Copy them to archives/ “just in case”
     for latest_file in latest_dir.glob('*'):
       if latest_file.name.startswith('dgw_dap'):
-        latest_requirement_block = latest_file
+        requirement_block = latest_file
       elif latest_file.name.startswith('dgw_ir'):
-        latest_actives_block = latest_file
+        actives_block = latest_file
       else:
         front_matter += f'<p>Deleted unexpected file: latest/{latest_file.name}</p>'
         shutil.unlink(latest_file)
@@ -226,34 +286,18 @@ if __name__ == '__main__':
 
   DB_Record = namedtuple('DB_Record', db_cols)
 
-  # If there is a new dap_req_block in downloads, date it, and move it to the archives dir.
-  file = Path('./downloads/dgw_dap_req_block.csv')
-  if file.exists():
-    # Move the downloads file to archives, where it will be the "latest"
-    file_date = str(datetime.date.fromtimestamp(int(file.stat().st_mtime)))
-    new_name = file.name.replace('.csv', f'_{file_date}.csv')
-    file.rename(Path(archives_dir, new_name))
-
-  # Now get the latest archived dap_req_block file available in ./archives
-  archive_files = archives_dir.glob('dgw_dap_req_block*.csv')
-  latest = None
-  for archive_file in archive_files:
-    if latest is None or archive_file.stat().st_mtime > latest.stat().st_mtime:
-      latest = archive_file
-  if latest is None:
-    sys.exit(f'{file.parent}/{file.name} does not exist, and no archive found')
-  file = latest
-  file_date = str(datetime.date.fromtimestamp(int(file.stat().st_mtime)))
-
   # There used to be an XML generator, but it’s no longer used.
   generator = csv_generator
 
   start_time = int(time.time())
+
   empty_parse_tree = json.dumps({})
+  file_datetime = datetime.datetime.fromtimestamp(requirement_block.stat().st_ctime)
+  file_date = file_datetime.strftime('%Y-%m-%d')
   irdw_load_date = None
   num_rows = num_inserted = num_updated = num_parsed = 0
 
-  for row in generator(file):
+  for row in generator(requirement_block):
     num_rows += 1
 
   # Here begins the actual update process
@@ -263,7 +307,7 @@ if __name__ == '__main__':
   with psycopg.connect('dbname=cuny_curriculum') as conn:
     with conn.cursor(row_factory=namedtuple_row) as cursor:
       row_num = 0
-      for new_row in generator(file):
+      for new_row in generator(requirement_block):
 
         # Integrity check: all rows must have the same irdw load date.
         # Desired date format: YYYY-MM-DD
@@ -279,7 +323,7 @@ if __name__ == '__main__':
         if irdw_load_date is None:
           irdw_load_date = load_date
           log_file = open(f'./Logs/update_requirement_blocks_{irdw_load_date}.log', 'w')
-          print(f'Using {file.name} with irdw_load_date {irdw_load_date}')
+          print(f'Using {requirement_block.name} with irdw_load_date {irdw_load_date}')
 
         if irdw_load_date != load_date:
           sys.exit(f'dap_req_block irdw_load_date ({load_date}) is not “{irdw_load_date}”'
@@ -308,7 +352,7 @@ if __name__ == '__main__':
         changes_str = ''
         cursor.execute(f"""
         select block_type, block_value, period_start, period_stop, parse_date, requirement_text,
-               parse_tree, dgw_seconds
+               requirement_html, parse_tree, dgw_seconds
           from requirement_blocks
          where institution = '{new_row.institution}'
            and requirement_id = '{new_row.requirement_id}'
@@ -323,6 +367,7 @@ if __name__ == '__main__':
           current_dgw_parse_tree = db_row.parse_tree  # Want to re-use these if text hasn’t changed
           current_dgw_parse_date = db_row.parse_date
           current_dgw_parse_secs = db_row.dgw_seconds
+          current_dgw_html = db_row.requirement_html
 
           # Record history of changes to the Scribe block itself
           days_ago = f'{(parse_date - db_row.parse_date).days}'.zfill(3)
@@ -333,6 +378,7 @@ if __name__ == '__main__':
             current_dgw_parse_tree = None
             current_dgw_parse_date = None
             current_dgw_parse_secs = None
+            current_dgw_html = None
             db_lines = db_row.requirement_text.split('\n')
             new_lines = requirement_text.split('\n')
             prev_len = len(db_lines)
@@ -437,7 +483,7 @@ if __name__ == '__main__':
                   f'{new_row.block_value}.', file=log_file)
 
       cursor.execute(f"""update updates
-                            set update_date = '{load_date}', file_name = '{file.name}'
+                            set update_date = '{load_date}', file_name = '{requirement_block.name}'
                           where table_name = 'requirement_blocks'""")
 
   # Summarize DAP_REQ_BLOCK processing.
@@ -469,11 +515,11 @@ if __name__ == '__main__':
     h, m = divmod(m, 60)
     print(f'  {int(h):02}:{int(m):02}:{round(s):02}')
 
-  # Regenerate the requirement_html column of requirement_blocks table, if there were any changes
+  # (Re-)generate the requirement_html column of requirement_blocks table if there were any changes
   if not none_changed:
-    print('Regenerate requirement_blocks.requirement_html')
+    print('Generate new/changed requirement_blocks.requirement_html')
     substep_start = time.time()
-    run_regen = ['./regenerate_html.py']
+    run_regen = ['./mk_html.py']
     if args.progress:
       run_regen.append('--progress')
     run(run_regen, stdout=sys.stdout, stderr=sys.stdout)
@@ -527,7 +573,8 @@ if __name__ == '__main__':
   }
   </style>
   """ + front_matter
-  # mk_term_info manages OAREDA’s dgw_ir_active_requirements.csv files
+
+  # mk_term_info ingests OAREDA’s dgw_ir_active_requirements.csv files
   result = run(['./mk_term_info.py'], capture_output=True)
   if result.returncode != 0:
     print('\nmk_term_info FAILED!')
@@ -594,14 +641,7 @@ if __name__ == '__main__':
       parse_report += f'<div class="warning"><p>{num_warnings} “this year” Alert{s}</p></div>'
 
   print('Email mapping files status report')
-  # No longer sending csv files to Lehman. They get the tables directly from the db.
-  # html_msg = status_report(front_matter)
-  # html_msg += parse_report
-  html_msg = parse_report
-  subject = f'Requirement block ingestion report from {hostname}'
-  to_list = [{'name': 'Christopher Vickery', 'email': 'Christopher.Vickery@qc.cuny.edu'}]
-  sender = {'name': 'T-Rex Labs', 'email': 'christopher.vickery@qc.cuny.edu'}
-  send_message(to_list, sender, subject, html_msg)
+  send_message(sysops, sender, subject, parse_report)
 
   if args.timing:
     m, s = divmod(int(round(time.time() - substep_start)), 60)
