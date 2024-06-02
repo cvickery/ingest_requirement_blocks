@@ -200,7 +200,7 @@ if __name__ == '__main__':
       if args.progress:
         print(f'downloads/{file.name}')
 
-      if file.name.lower() == 'dgw_dap_req_block.csv':
+      if file.stem.lower() == 'dgw_dap_req_block':
         if download_dapreq:
           # Should not occur: report to sysop for now
           if args.progress:
@@ -214,7 +214,7 @@ if __name__ == '__main__':
         else:
           download_dapreq = file
 
-      elif file.name.lower() ==  'dgw_ir_active_requirements.csv':
+      elif file.stem.lower() ==  'dgw_ir_active_requirements':
         if download_active:
           # Likewise
           if args.progress:
@@ -234,52 +234,38 @@ if __name__ == '__main__':
         front_matter += f'<p><strong>Deleted stray download: {file.name}</strong></p>'
         file.unlink()
 
-    # Continue?
-    if not (download_dapreq and download_active):
-      if args.progress:
-        print('Empty downloads directory. Nothing to do.')
-      front_matter += '<p>Empty downloads directory. Nothing to do.</p>'
-      send_message(sysops, sender, subject, front_matter)
-      exit()
+  # Continue?
+  if not (download_dapreq and download_active):
+    if args.progress:
+      print('Empty downloads directory. Nothing to do.')
+    front_matter += '<p>Empty downloads directory. Nothing to do.</p>'
+    send_message(sysops, sender, subject, front_matter)
+    exit()
 
-    # Move date-stamped downloads/ to archives/
-    for file in [download_dapreq, download_active]:
-      # Get the file's creation (download) date for archival purposes.
-      creation_date = datetime.datetime.fromtimestamp(file.stat().st_ctime)
-      archives_name = file.name.lower().replace('.csv', creation_date) + '.csv'
+  # Delete whatever is currently in latest/
+  for cruft_file in latest_dir.glob('*'):
+    cruft_file.unlink()
 
-      # Move from downloads/ to archives/ and rename
-      shutil.move(str(file), archives_dir / archives_name)
-      front_matter += f'<p>Moved, downloads/{file.name} to archives/</p>'
+  # Copy the new downloads to latest_queries/
+  shutil.copy2(download_dapreq, latest_dir)
+  shutil.copy2(download_active, latest_dir)
 
-    # Delete whatever is currently in latest/
-    for cruft_file in latest_dir.glob('*'):
-      cruft_file.unlink()
+  # Date-stamp downloaded files and move from downloads/ to archives/
+  for file in [download_dapreq, download_active]:
+    # Get the file's creation (download) date for archival purposes.
+    creation_datetime = datetime.datetime.fromtimestamp(file.stat().st_ctime)
+    creation_date = creation_datetime.strftime('%Y-%m-%d')
+    archives_name = f'{file.stem.lower()}_{creation_date}.csv'
+    shutil.move(str(file), archives_dir / archives_name)
+    if args.progress:
+      print(f'Moved, downloads/{file.name} to archives/')
+    front_matter += f'<p>Moved, downloads/{file.name} to archives/</p>'
 
-    # Copy latest dap_req_block and dgw_ir_active_requirements from archives/ to latest/
-    all_requirement_blocks = archives_dir.glob('dgw_dap_req_block*')
-    all_actives_blocks = archives_dir.glob('dgw_ir_active_requirements*')
-    requirement_block = sorted(list(all_requirement_blocks))[-1]
-    actives_block = sorted(list(all_actives_blocks))[-1]
-    shutil.copy2(requirement_block, latest_dir)
-    shutil.copy2(actives_block, latest_dir)
-
-  else:
-    # On the development system and on babbage.dyndns-home.com, pull_from_lehman has already
-    # populated latest/*. Copy them to archives/ “just in case”
-    for latest_file in latest_dir.glob('*'):
-      if latest_file.name.startswith('dgw_dap'):
-        requirement_block = latest_file
-      elif latest_file.name.startswith('dgw_ir'):
-        actives_block = latest_file
-      else:
-        front_matter += f'<p>Deleted unexpected file: latest/{latest_file.name}</p>'
-        shutil.unlink(latest_file)
-        latest_file = None
-
-      if latest_file:
-        shutil.copy2(latest_file, archives_dir)
-        front_matter += f'<p>Copied {latest_file.name} to archives/</p>'
+  # Sanity Checks
+  requirement_block = Path(latest_dir, 'dgw_dap_req_block.csv')
+  assert requirement_block.is_file()
+  actives_block = Path(latest_dir, 'dgw_ir_active_requirements.csv')
+  assert actives_block.is_file()
 
   # Now update the requirement_blocks table from the latest requirements block
 
