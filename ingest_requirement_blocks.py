@@ -78,6 +78,7 @@ import time
 from collections import namedtuple
 from pathlib import Path
 from psycopg.rows import namedtuple_row
+from psycopg.types.json import Json
 from sendemail import send_message
 from subprocess import run
 
@@ -456,7 +457,7 @@ if __name__ == '__main__':
                          'lock_version': new_row.lock_version,
                          'requirement_text': requirement_text,
                          'requirement_html': requirement_html,
-                         'parse_tree': current_dgw_parse_tree,
+                         'parse_tree': Json(current_dgw_parse_tree),
                          'dgw_parse_date': current_dgw_parse_date,
                          'dgw_seconds': current_dgw_parse_secs,
                          'irdw_load_date': irdw_load_date,
