@@ -26,7 +26,7 @@ create table requirement_blocks (
  lock_version      text,
  requirement_text  text,
  requirement_html  text,
- parse_tree        jsonb,
+ dgw_parse_tree    json,
  irdw_load_date    date,
  dgw_seconds       real,
  dgw_timestamp     text,
