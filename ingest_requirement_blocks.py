@@ -16,7 +16,7 @@ Ingest the dgw_dap_req block.csv file
   Otherwise, the dap_req_block row is checked for metadata and/or requirement_text changes; log
   changes to the history directory.
   For each new block and each block where the requirement_text field changed:
-    Set the parse_tree, dgw_seconds, dgw_timestamp, and requirement_html values to Null.
+    Set the dgw_parse_tree, dgw_seconds, dgw_timestamp, and requirement_html values to Null.
     Re-/parsing can take a long time to run, so doing that is deferred to a separate job.
       It may be better to include that in this job ... but not implemented yet.
 
@@ -271,7 +271,7 @@ if __name__ == '__main__':
   # Now update the requirement_blocks table from the latest requirements block
 
   # These are dap_req_block columns with OAREDA additions, plus requirement_html that gets added
-  # here, but not parse_tree and dgw_seconds, which will be set by the parser.
+  # here, but not dgw_parse_tree and dgw_seconds, which will be set by the parser.
   db_cols = ['institution', 'requirement_id', 'block_type', 'block_value', 'title', 'period_start',
              'period_stop', 'school', 'degree', 'college', 'major1', 'major2', 'concentration',
              'minor', 'liberal_learning', 'specialization', 'program', 'parse_status', 'parse_date',
@@ -348,7 +348,7 @@ if __name__ == '__main__':
         changes_str = ''
         cursor.execute(f"""
         select block_type, block_value, period_start, period_stop, parse_date, requirement_text,
-               requirement_html, parse_tree, dgw_seconds
+               requirement_html, dgw_parse_tree, dgw_seconds
           from requirement_blocks
          where institution = '{new_row.institution}'
            and requirement_id = '{new_row.requirement_id}'
@@ -360,7 +360,7 @@ if __name__ == '__main__':
           assert cursor.rowcount == 1, (f'Error: {cursor.rowcount} rows for {new_row.institution} '
                                         f'{new_row.requirement_id}')
           db_row = cursor.fetchone()
-          current_dgw_parse_tree = db_row.parse_tree  # Want to re-use these if text hasn’t changed
+          current_dgw_parse_tree = db_row.dgw_parse_tree  # Re-use these if text hasn’t changed
           current_dgw_parse_date = db_row.parse_date
           current_dgw_parse_secs = db_row.dgw_seconds
           current_dgw_html = db_row.requirement_html
@@ -457,7 +457,7 @@ if __name__ == '__main__':
                          'lock_version': new_row.lock_version,
                          'requirement_text': requirement_text,
                          'requirement_html': requirement_html,
-                         'parse_tree': Json(current_dgw_parse_tree),
+                         'dgw_parse_tree': Json(current_dgw_parse_tree),
                          'dgw_parse_date': current_dgw_parse_date,
                          'dgw_seconds': current_dgw_parse_secs,
                          'irdw_load_date': irdw_load_date,
@@ -610,7 +610,7 @@ if __name__ == '__main__':
         cursor.execute("""
         select institution, requirement_id, term_info
           from requirement_blocks
-         where parse_tree is null
+         where dgw_parse_tree is null
            and term_info is not null
            and period_stop ~* '^9'
         order by institution, requirement_id
