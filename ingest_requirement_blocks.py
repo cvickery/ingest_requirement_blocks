@@ -347,8 +347,8 @@ if __name__ == '__main__':
         # Check for changes in the data and metadata items that we use.
         changes_str = ''
         cursor.execute(f"""
-        select block_type, block_value, period_start, period_stop, parse_date, requirement_text,
-               requirement_html, dgw_parse_tree, dgw_seconds
+        select block_type, block_value, period_start, period_stop, major1,
+               parse_date, requirement_text, requirement_html, dgw_parse_tree, dgw_seconds
           from requirement_blocks
          where institution = '{new_row.institution}'
            and requirement_id = '{new_row.requirement_id}'
@@ -393,17 +393,14 @@ if __name__ == '__main__':
                                                 fromfile='previous', tofile='changed', n=0)
               _diff_file.writelines(diff_lines)
 
-          # Log metadata changes and trigger block update
-          for item in ['block_type', 'block_value', 'period_start', 'period_stop', 'parse_date']:
-            if item == 'parse_date':
-              old_value = db_row.parse_date
-              new_value = parse_date
-            else:
-              exec(f'old_value = db_row.{item}')
-              exec(f'new_value = new_row.{item}')
+          # Check for changes to key metadata fields: log any changes and trigger block update
+          for item in ['block_type', 'block_value',
+                       'major1', 'period_start', 'period_stop']:
+            exec(f'old_value = db_row.{item}')
+            exec(f'new_value = new_row.{item}')
             if old_value != new_value:
               action.do_update = True
-              print(f'{new_row.institution} {new_row.requirement_id} {item}: {old_value}:'
+              print(f'{new_row.institution} {new_row.requirement_id} {item}: {old_value} ==> '
                     f'{new_value}', file=log_file)
 
         # Insert or update the requirement_block as the case may be
