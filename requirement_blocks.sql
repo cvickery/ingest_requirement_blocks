@@ -1,7 +1,7 @@
 -- The requirement_blocks table
-drop table if exists requirement_blocks cascade;
+DROP TABLE IF EXISTS requirement_blocks CASCADE;
 
-create table requirement_blocks (
+CREATE TABLE requirement_blocks (
  institution       text   not null,
  requirement_id    text   not null,
  block_type        text,
@@ -30,19 +30,17 @@ create table requirement_blocks (
  irdw_load_date    date,
  dgw_seconds       real,
  dgw_timestamp     text,
- terminfo          jsonb,
+ terminfo          json,
  PRIMARY KEY (institution, requirement_id));
 
 drop view if exists view_blocks;
 create view view_blocks as
-  select institution,
-         requirement_id,
-         block_type,
-         block_value,
-         title,
-         period_stop,
-         dgw_parse_date,
-         dgw_seconds,
-         to_char(length(parse_tree::text), '999G999G999') as tree_size,
-         irdw_load_date
-  from requirement_blocks;
+   SELECT institution,
+    requirement_id,
+    block_type,
+    block_value,
+    title,
+    major1,
+    period_stop,
+    term_info IS NOT NULL AS is_active
+   FROM requirement_blocks;
