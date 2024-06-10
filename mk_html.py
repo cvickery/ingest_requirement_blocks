@@ -1,5 +1,5 @@
 #! /usr/local/bin/python3
-"""Replace the requirement_html field for all rows in the requirement_blocks table."""
+"""Replace null requirement_html fields in the requirement_blocks table."""
 
 import psycopg
 import time

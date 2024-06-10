@@ -396,8 +396,8 @@ if __name__ == '__main__':
           # Check for changes to key metadata fields: log any changes and trigger block update
           for item in ['block_type', 'block_value',
                        'major1', 'period_start', 'period_stop']:
-            exec(f'old_value = db_row.{item}')
-            exec(f'new_value = new_row.{item}')
+            old_value = getattr(db_row, item)
+            new_value = getattr(new_row, item)
             if old_value != new_value:
               action.do_update = True
               print(f'{new_row.institution} {new_row.requirement_id} {item}: {old_value} ==> '
