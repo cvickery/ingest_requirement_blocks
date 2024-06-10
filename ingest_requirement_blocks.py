@@ -361,11 +361,13 @@ if __name__ == '__main__':
                                         f'{new_row.requirement_id}')
           db_row = cursor.fetchone()
           current_dgw_parse_tree = db_row.dgw_parse_tree  # Re-use these if text hasn’t changed
-          if current_dgw_parse_tree == 'null':  # Quirk
-            current_dgw_parse_tree = None
           current_dgw_parse_date = db_row.parse_date
           current_dgw_parse_secs = db_row.dgw_seconds
           current_dgw_html = db_row.requirement_html
+          if current_dgw_parse_tree == 'null':  # Quirk
+            current_dgw_parse_tree = None
+            current_dgw_parse_date = None
+            currend_dgw_seconds = None
 
           # Record history of changes to the Scribe block itself
           days_ago = f'{(parse_date - db_row.parse_date).days}'.zfill(3)
