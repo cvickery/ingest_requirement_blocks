@@ -26,10 +26,10 @@ CREATE TABLE requirement_blocks (
  lock_version      text,
  requirement_text  text,
  requirement_html  text,
- dgw_parse_tree    json,
+ dgw_parse_tree    json default null,
+ dgw_seconds       real default null,
  irdw_load_date    date,
- dgw_seconds       real,
- dgw_timestamp     text,
+ dgw_parse_date    date default null,
  terminfo          json,
  PRIMARY KEY (institution, requirement_id));
 
