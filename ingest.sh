@@ -22,3 +22,11 @@ rm -f "$$"
 if [[ $# > 0 ]]
 then "$HOME"/bin/check_oareda_files.py --extract
 fi
+
+# Run requirements mapper
+now=$(date "+%Y-%m-%d %H:%M")
+echo "<h1>SMAPREP Report $now</h1><pre>" > "$$"
+"$HOME"/Projects/requirement_mapper/smaprep.sh > $$
+sendemail -s "SMAPREP from $(hostname)" -h "$$" christopher.vickery@qc.cuny.edu
+rm -f "$$"
+
