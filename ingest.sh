@@ -3,7 +3,7 @@
 # Ingest new blocks
 ./ingest_requirement_blocks.py -p >> "$$"
 
-# Parse Unparsed aNd Timeouts
+# PUNT: Parse UNparsed and Timeouts
 now=$(date "+%Y-%m-%d %H:%M")
 echo "<h1>PUNT Report $now</h1><pre>" > "$$"
 
@@ -16,3 +16,9 @@ echo "</pre>" >> "$$"
 # Email PUNT report
 sendemail -s "PUNT from $(hostname)" -h "$$" christopher.vickery@qc.cuny.edu
 rm -f "$$"
+
+# If there are any command line arguments, it means to copy the newly-archived files back to
+# ./downloads
+if [[ $# > 0 ]]
+then "$HOME"/bin/check_oareda_files.py --extract
+fi
