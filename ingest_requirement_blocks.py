@@ -215,7 +215,7 @@ if __name__ == '__main__':
         else:
           download_dapreq = file
 
-      elif file.stem.lower() ==  'dgw_ir_active_requirements':
+      elif file.stem.lower() == 'dgw_ir_active_requirements':
         if download_active:
           # Likewise
           if args.progress:
