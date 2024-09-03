@@ -35,7 +35,7 @@ sendemail -s "Ingest on $(hostname)" -h html christopher.vickery@qc.cuny.edu
 rm -f html
 
 # PUNT: Parse UNparsed and Timeouts with short, then long, timelimits
-dgws="$HOME"/Projects/./ingest_requirement_blocks
+dgws="$HOME"/Projects/dgw_processor
 {
   echo "<h3>PUNT Report $now</h3><pre>"
   echo -e "\nUnparsed:"
