@@ -1,7 +1,7 @@
 #! /usr/local/bin/bash
 (
   # Be sure we’re in the right place
-  cd "$HOME"/Projects/ingest_requirement_blocks || {echo "Unable to cd to ingest project"; exit 1}
+  cd "$HOME"/Projects/ingest_requirement_blocks || ( echo "Unable to cd to ingest project"; exit 1 )
 
   now=$(date "+%Y-%m-%d %H:%M")
 
@@ -14,7 +14,7 @@
       cat << EOD > html 2>&1
   <h3>Incomplete dgw_dap_req_block.csv at $now</h3>
   <p>$num_colleges colleges</p>"
-  EOD
+EOD
       sendemail -s "ingest.sh failure on $(hostname)" -h html christopher.vickery@qc.cuny.edu
       rm html
       exit 1
@@ -22,7 +22,7 @@
   else
     cat << EOD > html 2>&1
   <h3>Missing dgw_dap_req_block.csv at $now</h3>
-  EOD
+EOD
     sendemail -s "ingest.sh failure on $(hostname)" -h html christopher.vickery@qc.cuny.edu
     rm html
     exit 1
