@@ -616,7 +616,7 @@ if __name__ == '__main__':
            and period_stop ~* '^9'
         order by institution, requirement_id
         """)
-        this_year = (today.year - 1900) * 10
+        this_year = (today.year - 1900) * 10  # PeopleSoft term code for month “zero”
         num_warnings = 0
         num_rows = cursor.rowcount
         table_body = ''
