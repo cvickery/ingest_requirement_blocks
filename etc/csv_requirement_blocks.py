@@ -13,11 +13,10 @@
 
 import os
 import argparse
-from pathlib import Path
 import csv
 import psycopg2
 from psycopg2.extras import NamedTupleCursor
-from datetime import datetime, timezone
+from datetime import datetime
 from collections import namedtuple
 
 # CUNY Institutions Not In DegreeWorks

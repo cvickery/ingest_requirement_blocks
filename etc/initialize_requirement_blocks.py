@@ -25,7 +25,7 @@ if __name__ == '__main__':
       if latest is None or archive.stat().st_mtime > latest.stat().st_mtime:
         latest = archive
     if latest is None:
-      sys.exit(f'{file} does not exist, and no archive found.')
+      sys.exit('downloads/dap_req_block.csv does not exist, and no archive found.')
   print(f'Using {latest}')
   print('Clearing program requirements table (may take a while) ...', end='')
 
