@@ -169,9 +169,9 @@ if __name__ == '__main__':
   hostname = os.uname().nodename
 
   # Set up email params
-  sysops = [{'name': 'Christopher Vickery', 'email': 'Christopher.Vickery@qc.cuny.edu'}]
+  sysop = 'Christopher Vickery <Christopher.Vickery@qc.cuny.edu>'
   subject = f'Requirement block ingestion report from {hostname}'
-  sender = {'name': 'T-Rex Labs', 'email': 'christopher.vickery@qc.cuny.edu'}
+  sender = 'T-Rex Labs <christopher.vickery@qc.cuny.edu>'
 
   # Directories
   home_dir = Path.home()
@@ -241,7 +241,7 @@ if __name__ == '__main__':
     if args.progress:
       print('Empty downloads directory. Nothing to do.')
     front_matter += '<p>Empty downloads directory. Nothing to do.</p>'
-    send_email(sysops, sender, subject, front_matter, html2text(front_matter))
+    send_email(sysop, sender, subject, front_matter, html2text(front_matter))
     exit()
 
   # Delete whatever is currently in latest/
@@ -639,7 +639,7 @@ if __name__ == '__main__':
       parse_report += f'<div class="warning"><p>{num_warnings} “this year” Alert{s}</p></div>'
 
   print('Email mapping files status report')
-  send_email(sysops, sender, subject, parse_report, html2text(parse_report))
+  send_email(sysop, sender, subject, parse_report, html2text(parse_report))
 
   if args.timing:
     m, s = divmod(int(round(time.time() - substep_start)), 60)
