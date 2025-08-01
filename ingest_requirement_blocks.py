@@ -76,10 +76,11 @@ import sys
 import time
 
 from collections import namedtuple
+from html2text import html2text
 from pathlib import Path
 from psycopg.rows import namedtuple_row
 from psycopg.types.json import Json
-from sendemail import send_message
+from sendemail import send_email
 from subprocess import run
 
 from scribe_to_html import to_html
@@ -240,7 +241,7 @@ if __name__ == '__main__':
     if args.progress:
       print('Empty downloads directory. Nothing to do.')
     front_matter += '<p>Empty downloads directory. Nothing to do.</p>'
-    send_message(sysops, sender, subject, front_matter)
+    send_email(sysops, sender, subject, front_matter, html2text(front_matter))
     exit()
 
   # Delete whatever is currently in latest/
@@ -638,7 +639,7 @@ if __name__ == '__main__':
       parse_report += f'<div class="warning"><p>{num_warnings} “this year” Alert{s}</p></div>'
 
   print('Email mapping files status report')
-  send_message(sysops, sender, subject, parse_report)
+  send_email(sysops, sender, subject, parse_report, html2text(parse_report))
 
   if args.timing:
     m, s = divmod(int(round(time.time() - substep_start)), 60)
