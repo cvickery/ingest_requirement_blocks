@@ -169,7 +169,7 @@ if __name__ == '__main__':
   hostname = os.uname().nodename
 
   # Set up email params
-  sysop = 'Christopher Vickery <Christopher.Vickery@qc.cuny.edu>'
+  sysop = ['Christopher Vickery <Christopher.Vickery@qc.cuny.edu>']
   subject = f'Requirement block ingestion report from {hostname}'
   sender = 'T-Rex Labs <christopher.vickery@qc.cuny.edu>'
 
