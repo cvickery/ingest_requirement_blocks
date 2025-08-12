@@ -17,6 +17,7 @@ if __name__ == '__main__':
                          help='enable progress messages')
   args = argparser.parse_args()
 
+  print('Generate missing html text for requirement blocks')
   with psycopg.connect('dbname=cuny_curriculum') as conn:
     with conn.cursor(row_factory=namedtuple_row) as fetch_cursor:
       with conn.cursor() as update_cursor:
@@ -35,4 +36,6 @@ if __name__ == '__main__':
                                     where institution = %s and requirement_id = %s
                                 """, (requirement_html, row.institution, row.requirement_id))
 
-  print(f'\n{round(time.time() - start)} seconds')
+  elapsed = round(time.time() - start)
+  s = '' if elapsed == 1 else 's'
+  print(f'That took {elapsed} second{s}')
