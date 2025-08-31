@@ -25,7 +25,7 @@ if __name__ == '__main__':
                                   where requirement_html is null
                              """)
         num_blocks = fetch_cursor.rowcount
-        s = '' if num_blocks = 1 else '1'
+        s = '' if num_blocks == 1 else 's'
         print(f'Generate missing html text for {num_blocks} requirement block{s}')
         counter = 0
         for row in fetch_cursor:
