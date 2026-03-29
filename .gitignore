@@ -10,3 +10,5 @@ history/
 /latest_queries/
 nohup.out
 .flake8
+/.nova/
+/.ruff

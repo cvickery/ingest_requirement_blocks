@@ -8,7 +8,7 @@
   # Make sure there is a complete set of dap_req_blocks
   if [[ -f downloads/dgw_dap_req_block.csv ]]
   then
-    num_colleges=$("$HOME"/bin/count_blocks downloads/dgw_dap_req_block.csv | wc -l)
+    num_colleges=$("$HOME"/bin/count_blocks ./downloads/dgw_dap_req_block.csv | wc -l)
     if (( num_colleges < 21 ))
     then
       cat << EOD > html 2>&1
@@ -33,6 +33,7 @@ EOD
     echo "<h3>Ingest Requirement Blocks at $now</h3><pre>"
     ./ingest_requirement_blocks.py
   } > html 2>&1
+
   # Email Ingest Report
   sendemail -s "Ingest on $(hostname)" -h html christopher.vickery@qc.cuny.edu
   rm -f html
