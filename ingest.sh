@@ -1,9 +1,17 @@
 #! /usr/local/bin/bash
+
+# Ingest new/changed requirement blocks; Parse unparsed blocks; Build requirement mapping files.
+
+# All output is written to a file named ./html, which is emailed when the script terminates.
+#  - 2026-03-30 Leave ./html in place for diagnostic purposes rather than deleting it.
+
 (
   # Be sure we’re in the right place
   cd "$HOME"/Projects/ingest_requirement_blocks || ( echo "Unable to cd to ingest project"; exit 1 )
 
   now=$(date "+%Y-%m-%d %H:%M")
+  # Initialize the ./html file
+  echo "<h1> Ingest.sh on $(hostname) at $now</h1>" > html
 
   # Make sure there is a complete set of dap_req_blocks
   if [[ -f downloads/dgw_dap_req_block.csv ]]
@@ -16,7 +24,6 @@
   <p>$num_colleges colleges</p>"
 EOD
       sendemail -s "ingest.sh failure on $(hostname)" -h html christopher.vickery@qc.cuny.edu
-      rm html
       exit 1
     fi
   else
@@ -24,7 +31,6 @@ EOD
   <h3>Missing dgw_dap_req_block.csv at $now</h3>
 EOD
     sendemail -s "ingest.sh failure on $(hostname)" -h html christopher.vickery@qc.cuny.edu
-    rm html
     exit 1
   fi
 
@@ -36,7 +42,7 @@ EOD
 
   # Email Ingest Report
   sendemail -s "Ingest on $(hostname)" -h html christopher.vickery@qc.cuny.edu
-  rm -f html
+
 
   # PUNT: Parse UNparsed and Timeouts with short, then long, timelimits
   dgws="$HOME"/Projects/dgw_processor
@@ -50,7 +56,6 @@ EOD
   } > html 2>&1
   # Email PUNT report
   sendemail -s "PUNT on $(hostname)" -h html christopher.vickery@qc.cuny.edu
-  rm -f html
 
   # Copy the newly-archived files back to ./downloads
   if [[ $# -gt 0 ]]
@@ -64,6 +69,6 @@ EOD
     "$HOME"/Projects/requirement_mapper/smaprep.sh
   } > html 2>&1
   # Email Mapper Report
-  sendemail -s "SMAPREP on $(hostname)" -h html christopher.vickery@qc.cuny.edu
-  rm -f html
+  sendemail -s "SMAPREP on $(hostname)" -h html christopher.vickery@qc.cuny.edu > html
+
 )
