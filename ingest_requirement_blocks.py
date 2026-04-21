@@ -24,7 +24,8 @@ Ingest the dgw_id_active_requirements.csv file
   Invoke mk_term_info.py to replace (or initialize) the term_info dict for all current blocks.
   Log the latest active term for missing blocks.
 
-Invoke regenerate_html.py to generate missing requirement_html fields for all current blocks.
+Invoke mk_html.py to generate any missing requirement_html fields in the requirement_blocks table.
+(No matching rows expected.)
 
 ---------------------------------------------------------------------------------------------------
 It took some doing to get the dap_req_block files to transfer to the development system
