@@ -12,3 +12,4 @@ nohup.out
 .flake8
 /.nova/
 /.ruff
+html
