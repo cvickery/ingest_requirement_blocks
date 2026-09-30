@@ -69,6 +69,6 @@ EOD
     "$HOME"/Projects/requirement_mapper/smaprep.sh
   } > html 2>&1
   # Email Mapper Report
-  sendemail -s "SMAPREP on $(hostname)" -h html christopher.vickery@qc.cuny.edu > html
+  sendemail -s "SMAPREP on $(hostname)" -h html christopher.vickery@qc.cuny.edu
 
 )
