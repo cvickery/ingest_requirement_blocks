@@ -1,0 +1,7 @@
+[tool.ruff]
+line-length = 100
+respect-gitignore = true
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+ignore = ["E111", "E114", "E115"]
