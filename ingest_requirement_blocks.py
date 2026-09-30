@@ -70,21 +70,20 @@ import datetime
 import difflib
 import json
 import os
-import psycopg
 import re
 import shutil
 import sys
 import time
-
 from collections import namedtuple
-from html2text import html2text
 from pathlib import Path
-from psycopg.rows import namedtuple_row
-from psycopg.types.json import Json
-from sendemail import send_email
 from subprocess import run
 
+import psycopg
+from html2text import html2text
+from psycopg.rows import namedtuple_row
+from psycopg.types.json import Json
 from scribe_to_html import to_html
+from sendemail import send_email
 
 # Deal with large CLOBS
 csv.field_size_limit(sys.maxsize)
@@ -313,7 +312,7 @@ if __name__ == '__main__':
         if re.match(r'^\d{4}-\d{2}-\d{2}$', load_date):
           load_date = datetime.date.fromisoformat(load_date)
         # Alternate format: DD-MMM-YY
-        elif re.match(r'\d{2}-[a-z]{3}-\d{2}', load_date, re.I):
+        elif re.match(r'\d{2}-[a-z]{3}-\d{2}', load_date, re.IGNORECASE):
           dt = datetime.strptime(load_date, '%d-%b-%y').strftime('%Y-%m-%d')
           load_date = datetime.date(dt.year, dt.month, dt.day)
         else:
@@ -465,7 +464,7 @@ if __name__ == '__main__':
                          'dgw_seconds': current_dgw_parse_secs,
                          'irdw_load_date': irdw_load_date,
                          }
-          set_args = ','.join([f'{key}=%s' for key in update_dict.keys()])
+          set_args = ','.join([f'{key}=%s' for key in update_dict])
           cursor.execute(f"""
           update requirement_blocks set {set_args}
            where institution = %s and requirement_id = %s

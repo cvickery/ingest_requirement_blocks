@@ -3,9 +3,9 @@
     No real surprises here. Blocks that were active previously don't always stay around.
 """
 import csv
-import psycopg
+from collections import defaultdict, namedtuple
 
-from collections import namedtuple, defaultdict
+import psycopg
 from psycopg.rows import namedtuple_row
 
 active_blocks = dict()

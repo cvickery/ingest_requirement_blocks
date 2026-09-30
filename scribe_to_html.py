@@ -1,9 +1,9 @@
 #! /usr/local/bin/python3
 """Function to generate HTML details element from requirement_text."""
 
-import psycopg
-
 from argparse import ArgumentParser
+
+import psycopg
 from dgw_preprocessor import dgw_filter
 from psycopg.rows import dict_row
 

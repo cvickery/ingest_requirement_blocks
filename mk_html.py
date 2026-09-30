@@ -1,12 +1,11 @@
 #! /usr/local/bin/python3
 """Replace null requirement_html fields in the requirement_blocks table."""
 
-import psycopg
 import time
-
 from argparse import ArgumentParser
-from psycopg.rows import namedtuple_row
 
+import psycopg
+from psycopg.rows import namedtuple_row
 from scribe_to_html import to_html
 
 if __name__ == '__main__':
